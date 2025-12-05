@@ -208,3 +208,16 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+### Bonus Point Consideration
+For every feature implementation, always remember to check the bonus point criteria as outlined in "Hackathon II - Todo Spec-Driven Development.md" (lines 78-86). Specifically, consider if the feature can leverage Claude Code Subagents or Agent Skills to earn "Reusable Intelligence" bonus points. If a feature needs skills or subagents, suggest it.
+
+### Integration with Agent System
+This project is designed to work with Claude Code's `todo-task-manager` subagent and associated skills:
+- `add-todo-task`: Create and add a new todo task
+- `view-todo-tasks`: Retrieve and display tasks
+- `update-todo-task`: Modify an existing task
+- `delete-todo-task`: Remove a task
+- `mark-todo-complete`: Change completion status
+
+The command-line interface is structured to support these agent interactions through appropriate command-line arguments.
