@@ -1,6 +1,15 @@
 import argparse
 from typing import Optional
 from .task_manager import TaskManager
+from .ui import (
+    display_menu,
+    display_tasks,
+    get_task_input,
+    get_task_id,
+    display_error,
+    display_success,
+    confirm_action
+)
 
 
 def add_task_command(task_manager: TaskManager, title: str, description: Optional[str] = None):
@@ -117,34 +126,141 @@ def create_parser():
     return parser
 
 
+def run_interactive_mode(task_manager: TaskManager):
+    """Run the interactive menu mode."""
+    while True:
+        action = display_menu()
+
+        try:
+            if action == "Add Task":
+                title, description = get_task_input()
+                task = task_manager.add_task(title=title, description=description)
+                display_success(f"Task added successfully with ID: {task.id}")
+
+            elif action == "View Tasks":
+                status_choice = input("Filter by status? (all/pending/completed/press Enter for all): ").strip().lower()
+                if status_choice in ["pending", "completed"]:
+                    status_filter = status_choice
+                elif status_choice == "all" or status_choice == "":
+                    status_filter = None
+                else:
+                    status_filter = None
+                    if status_choice:
+                        display_error("Invalid status filter. Showing all tasks.")
+
+                tasks = task_manager.list_tasks(status=status_filter)
+                display_tasks(tasks, status_filter)
+
+            elif action == "Update Task":
+                task_id = get_task_id()
+
+                # Check if task exists
+                task = task_manager.get_task(task_id)
+                if not task:
+                    display_error(f"Task with ID {task_id} not found")
+                    continue
+
+                print("Enter new values (press Enter to keep current value):")
+                new_title = input(f"Title (current: {task.title}): ").strip()
+                new_description = input(f"Description (current: {task.description or 'None'}): ").strip()
+                new_status = input("Status (pending/completed, press Enter to keep current): ").strip().lower()
+
+                # Only update fields that were provided
+                title = new_title if new_title else None
+                description = new_description if new_description else None
+                status = new_status if new_status in ["pending", "completed"] else None
+
+                updated_task = task_manager.update_task(task_id, title, description, status)
+                if updated_task:
+                    display_success(f"Task {task_id} updated successfully")
+                else:
+                    display_error(f"Failed to update task {task_id}")
+
+            elif action == "Delete Task":
+                task_id = get_task_id()
+
+                # Confirm deletion
+                task = task_manager.get_task(task_id)
+                if task:
+                    confirm = confirm_action(f"Are you sure you want to delete task '{task.title}' (ID: {task_id})?")
+                    if confirm:
+                        success = task_manager.delete_task(task_id)
+                        if success:
+                            display_success(f"Task {task_id} deleted successfully")
+                        else:
+                            display_error(f"Failed to delete task {task_id}")
+                    else:
+                        print("Deletion cancelled.")
+                else:
+                    display_error(f"Task with ID {task_id} not found")
+
+            elif action == "Mark as Complete":
+                task_id = get_task_id()
+
+                # Check if task exists
+                task = task_manager.get_task(task_id)
+                if not task:
+                    display_error(f"Task with ID {task_id} not found")
+                    continue
+
+                # Toggle status
+                new_status = "completed" if task.status != "completed" else "pending"
+                updated_task = task_manager.update_task(task_id, status=new_status)
+
+                if updated_task:
+                    status_text = "completed" if new_status == "completed" else "marked as pending"
+                    display_success(f"Task {task_id} {status_text} successfully")
+                else:
+                    display_error(f"Failed to update task {task_id}")
+
+            elif action == "Exit":
+                print("Goodbye!")
+                break
+
+        except KeyboardInterrupt:
+            print("\n\nGoodbye!")
+            break
+        except Exception as e:
+            display_error(f"An error occurred: {str(e)}")
+
+
 def run_cli():
     """Run the command-line interface."""
-    parser = create_parser()
-    args = parser.parse_args()
+    import sys
 
-    # Initialize the task manager
-    task_manager = TaskManager()
-
-    # Execute the appropriate command based on user input
-    if args.command == "add":
-        add_task_command(task_manager, args.title, args.description)
-    elif args.command == "delete":
-        delete_task_command(task_manager, args.id)
-    elif args.command == "update":
-        # For the status argument, we need to handle the "all" case from view command differently
-        status = args.status if args.command != "view" and hasattr(args, 'status') and args.status not in ["all"] else args.status if hasattr(args, 'status') and args.status in ["pending", "completed"] else None
-        update_task_command(
-            task_manager,
-            args.id,
-            args.title,
-            args.description,
-            status
-        )
-    elif args.command == "view":
-        # For view command, convert "all" to None to show all tasks
-        status_filter = args.status if args.status != "all" else None
-        view_tasks_command(task_manager, status_filter)
-    elif args.command == "complete":
-        complete_task_command(task_manager, args.id)
+    # Check if command-line arguments were provided
+    # If no arguments provided, launch interactive mode
+    if len(sys.argv) == 1:
+        # Initialize the task manager
+        task_manager = TaskManager()
+        run_interactive_mode(task_manager)
     else:
-        parser.print_help()
+        parser = create_parser()
+        args = parser.parse_args()
+
+        # Initialize the task manager
+        task_manager = TaskManager()
+
+        # Execute the appropriate command based on user input
+        if args.command == "add":
+            add_task_command(task_manager, args.title, args.description)
+        elif args.command == "delete":
+            delete_task_command(task_manager, args.id)
+        elif args.command == "update":
+            # For the status argument, we need to handle the "all" case from view command differently
+            status = args.status if args.command != "view" and hasattr(args, 'status') and args.status not in ["all"] else args.status if hasattr(args, 'status') and args.status in ["pending", "completed"] else None
+            update_task_command(
+                task_manager,
+                args.id,
+                args.title,
+                args.description,
+                status
+            )
+        elif args.command == "view":
+            # For view command, convert "all" to None to show all tasks
+            status_filter = args.status if args.status != "all" else None
+            view_tasks_command(task_manager, status_filter)
+        elif args.command == "complete":
+            complete_task_command(task_manager, args.id)
+        else:
+            parser.print_help()
