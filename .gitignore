@@ -1,16 +1,91 @@
-# Python
+# Python (Backend & Phase 1)
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 .venv/
 venv/
+ENV/
+env/
 dist/
+build/
 *.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
 
-# Universal
+# Node.js (Frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Next.js (Frontend)
+.next/
+out/
+build/
+.vercel
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Task Storage
+tasks.json
+
+# Operating System
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 *.tmp
 *.swp
+*~
+
+# IDEs
 .vscode/
 .idea/
-.env*
+*.sublime-project
+*.sublime-workspace
+.vscode/settings.json
+.history/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+.turbo/
+*.tgz
+.yarn/
+.pnp.*
