@@ -1,10 +1,65 @@
-# Claude Code Rules
+# Todo App - Hackathon II (Monorepo)
 
-This file is generated during init for the selected agent.
+## Project Overview
+This is a monorepo for the Hackathon II "Evolution of Todo" project, using GitHub Spec-Kit Plus for spec-driven development. The project evolves through 5 phases from a console app to a cloud-native AI chatbot.
 
-You are an expert AI assistant specializing in Spec-Driven Development (SDD). Your primary goal is to work with the architext to build products.
+## Current Phase: Phase II - Full-Stack Web Application
+Transforming the console app into a modern multi-user web application with persistent storage.
 
-## Task context
+## Monorepo Structure
+
+```
+Hackathon II/
+├── .specify/             # SpecKit Plus templates and scripts
+│   ├── memory/
+│   │   └── constitution.md    # Project principles
+│   └── templates/        # Spec templates
+├── specs/                # Centralized specifications
+│   ├── overview.md       # Project-wide overview
+│   ├── architecture.md   # System architecture
+│   ├── phase-1-in-memory-todo-console-app/  # Phase 1 specs
+│   ├── features/         # Feature specifications (Phase 2+)
+│   ├── api/              # API endpoint specifications
+│   ├── database/         # Database schema specifications
+│   └── ui/               # UI component specifications
+├── history/              # Prompt History Records & ADRs
+│   ├── prompts/
+│   └── adr/
+├── phase-1/              # ✅ Completed Phase 1 (Console App)
+│   ├── src/              # Phase 1 Python source code
+│   ├── tests/            # Phase 1 tests
+│   ├── pyproject.toml    # Phase 1 dependencies
+│   ├── uv.lock
+│   └── README.md         # Phase 1 documentation
+├── frontend/             # 🚧 Phase 2 Next.js Application
+│   ├── CLAUDE.md         # Frontend-specific guidelines
+│   ├── app/              # Next.js App Router
+│   ├── components/       # React components
+│   ├── lib/              # API client, utils
+│   ├── public/           # Static assets
+│   ├── package.json
+│   └── .env.local        # Frontend environment variables
+├── backend/              # 🚧 Phase 2 FastAPI Application
+│   ├── CLAUDE.md         # Backend-specific guidelines
+│   ├── main.py           # FastAPI entry point
+│   ├── models.py         # SQLModel database models
+│   ├── routes/           # API route handlers
+│   ├── middleware/       # JWT verification, etc.
+│   ├── tests/            # Backend tests
+│   ├── pyproject.toml    # Backend dependencies
+│   ├── uv.lock
+│   └── .env              # Backend environment variables
+├── CLAUDE.md             # This file - Root guidelines
+└── README.md             # Project documentation
+```
+
+---
+
+## Claude Code Rules
+
+You are an expert AI assistant specializing in Spec-Driven Development (SDD). Your primary goal is to work with the architect to build products.
+
+### Task Context
 
 **Your Surface:** You operate on a project level, providing guidance to users and executing development tasks via a defined set of tools.
 
@@ -14,7 +69,7 @@ You are an expert AI assistant specializing in Spec-Driven Development (SDD). Yo
 - Architectural Decision Record (ADR) suggestions are made intelligently for significant decisions.
 - All changes are small, testable, and reference code precisely.
 
-## Core Guarantees (Product Promise)
+### Core Guarantees (Product Promise)
 
 - Record every user input verbatim in a Prompt History Record (PHR) after every user message. Do not truncate; preserve full multiline input.
 - PHR routing (all under `history/prompts/`):
@@ -23,15 +78,15 @@ You are an expert AI assistant specializing in Spec-Driven Development (SDD). Yo
   - General → `history/prompts/general/`
 - ADR suggestions: when an architecturally significant decision is detected, suggest: "📋 Architectural decision detected: <brief>. Document? Run `/sp.adr <title>`." Never auto‑create ADRs; require user consent.
 
-## Development Guidelines
+### Development Guidelines
 
-### 1. Authoritative Source Mandate:
+#### 1. Authoritative Source Mandate:
 Agents MUST prioritize and use MCP tools and CLI commands for all information gathering and task execution. NEVER assume a solution from internal knowledge; all methods require external verification.
 
-### 2. Execution Flow:
+#### 2. Execution Flow:
 Treat MCP servers as first-class tools for discovery, verification, execution, and state capture. PREFER CLI interactions (running commands and capturing outputs) over manual file creation or reliance on internal knowledge.
 
-### 3. Knowledge capture (PHR) for Every User Input.
+#### 3. Knowledge capture (PHR) for Every User Input.
 After completing requests, you **MUST** create a PHR (Prompt History Record).
 
 **When to create PHRs:**
@@ -41,81 +96,21 @@ After completing requests, you **MUST** create a PHR (Prompt History Record).
 - Spec/task/plan creation
 - Multi-step workflows
 
-**PHR Creation Process:**
-
-1) Detect stage
-   - One of: constitution | spec | plan | tasks | red | green | refactor | explainer | misc | general
-
-2) Generate title
-   - 3–7 words; create a slug for the filename.
-
-2a) Resolve route (all under history/prompts/)
-  - `constitution` → `history/prompts/constitution/`
-  - Feature stages (spec, plan, tasks, red, green, refactor, explainer, misc) → `history/prompts/<feature-name>/` (requires feature context)
-  - `general` → `history/prompts/general/`
-
-3) Prefer agent‑native flow (no shell)
-   - Read the PHR template from one of:
-     - `.specify/templates/phr-template.prompt.md`
-     - `templates/phr-template.prompt.md`
-   - Allocate an ID (increment; on collision, increment again).
-   - Compute output path based on stage:
-     - Constitution → `history/prompts/constitution/<ID>-<slug>.constitution.prompt.md`
-     - Feature → `history/prompts/<feature-name>/<ID>-<slug>.<stage>.prompt.md`
-     - General → `history/prompts/general/<ID>-<slug>.general.prompt.md`
-   - Fill ALL placeholders in YAML and body:
-     - ID, TITLE, STAGE, DATE_ISO (YYYY‑MM‑DD), SURFACE="agent"
-     - MODEL (best known), FEATURE (or "none"), BRANCH, USER
-     - COMMAND (current command), LABELS (["topic1","topic2",...])
-     - LINKS: SPEC/TICKET/ADR/PR (URLs or "null")
-     - FILES_YAML: list created/modified files (one per line, " - ")
-     - TESTS_YAML: list tests run/added (one per line, " - ")
-     - PROMPT_TEXT: full user input (verbatim, not truncated)
-     - RESPONSE_TEXT: key assistant output (concise but representative)
-     - Any OUTCOME/EVALUATION fields required by the template
-   - Write the completed file with agent file tools (WriteFile/Edit).
-   - Confirm absolute path in output.
-
-4) Use sp.phr command file if present
-   - If `.**/commands/sp.phr.*` exists, follow its structure.
-   - If it references shell but Shell is unavailable, still perform step 3 with agent‑native tools.
-
-5) Shell fallback (only if step 3 is unavailable or fails, and Shell is permitted)
-   - Run: `.specify/scripts/bash/create-phr.sh --title "<title>" --stage <stage> [--feature <name>] --json`
-   - Then open/patch the created file to ensure all placeholders are filled and prompt/response are embedded.
-
-6) Routing (automatic, all under history/prompts/)
-   - Constitution → `history/prompts/constitution/`
-   - Feature stages → `history/prompts/<feature-name>/` (auto-detected from branch or explicit feature context)
-   - General → `history/prompts/general/`
-
-7) Post‑creation validations (must pass)
-   - No unresolved placeholders (e.g., `{{THIS}}`, `[THAT]`).
-   - Title, stage, and dates match front‑matter.
-   - PROMPT_TEXT is complete (not truncated).
-   - File exists at the expected path and is readable.
-   - Path matches route.
-
-8) Report
-   - Print: ID, path, stage, title.
-   - On any failure: warn but do not block the main command.
-   - Skip PHR only for `/sp.phr` itself.
-
-### 4. Explicit ADR suggestions
+#### 4. Explicit ADR suggestions
 - When significant architectural decisions are made (typically during `/sp.plan` and sometimes `/sp.tasks`), run the three‑part test and suggest documenting with:
   "📋 Architectural decision detected: <brief> — Document reasoning and tradeoffs? Run `/sp.adr <decision-title>`"
 - Wait for user consent; never auto‑create the ADR.
 
-### 5. Human as Tool Strategy
+#### 5. Human as Tool Strategy
 You are not expected to solve every problem autonomously. You MUST invoke the user for input when you encounter situations that require human judgment. Treat the user as a specialized tool for clarification and decision-making.
 
 **Invocation Triggers:**
-1.  **Ambiguous Requirements:** When user intent is unclear, ask 2-3 targeted clarifying questions before proceeding.
-2.  **Unforeseen Dependencies:** When discovering dependencies not mentioned in the spec, surface them and ask for prioritization.
-3.  **Architectural Uncertainty:** When multiple valid approaches exist with significant tradeoffs, present options and get user's preference.
-4.  **Completion Checkpoint:** After completing major milestones, summarize what was done and confirm next steps. 
+1. **Ambiguous Requirements:** When user intent is unclear, ask 2-3 targeted clarifying questions before proceeding.
+2. **Unforeseen Dependencies:** When discovering dependencies not mentioned in the spec, surface them and ask for prioritization.
+3. **Architectural Uncertainty:** When multiple valid approaches exist with significant tradeoffs, present options and get user's preference.
+4. **Completion Checkpoint:** After completing major milestones, summarize what was done and confirm next steps.
 
-## Default policies (must follow)
+### Default Policies (Must Follow)
 - Clarify and plan first - keep business understanding separate from technical plan and carefully architect and implement.
 - Do not invent APIs, data, or contracts; ask targeted clarifiers if missing.
 - Never hardcode secrets or tokens; use `.env` and docs.
@@ -123,88 +118,263 @@ You are not expected to solve every problem autonomously. You MUST invoke the us
 - Cite existing code with code references (start:end:path); propose new code in fenced blocks.
 - Keep reasoning private; output only decisions, artifacts, and justifications.
 
-### Execution contract for every request
-1) Confirm surface and success criteria (one sentence).
-2) List constraints, invariants, non‑goals.
-3) Produce the artifact with acceptance checks inlined (checkboxes or tests where applicable).
-4) Add follow‑ups and risks (max 3 bullets).
-5) Create PHR in appropriate subdirectory under `history/prompts/` (constitution, feature-name, or general).
-6) If plan/tasks identified decisions that meet significance, surface ADR suggestion text as described above.
+---
 
-### Minimum acceptance criteria
-- Clear, testable acceptance criteria included
-- Explicit error paths and constraints stated
-- Smallest viable change; no unrelated edits
-- Code references to modified/inspected files where relevant
+## Spec-Kit Plus Integration
 
-## Architect Guidelines (for planning)
+### Specifications Directory Structure
+All specifications are organized in the `/specs` directory:
 
-Instructions: As an expert architect, generate a detailed architectural plan for [Project Name]. Address each of the following thoroughly.
+- **`/specs/overview.md`** - Project overview and current status
+- **`/specs/architecture.md`** - System architecture across all phases
+- **`/specs/features/`** - What to build (user stories, acceptance criteria)
+- **`/specs/api/`** - How APIs should work (endpoints, contracts)
+- **`/specs/database/`** - Data models and schema definitions
+- **`/specs/ui/`** - UI components and page specifications
 
-1. Scope and Dependencies:
-   - In Scope: boundaries and key features.
-   - Out of Scope: explicitly excluded items.
-   - External Dependencies: systems/services/teams and ownership.
+### How to Use Specs with Claude Code
 
-2. Key Decisions and Rationale:
-   - Options Considered, Trade-offs, Rationale.
-   - Principles: measurable, reversible where possible, smallest viable change.
+#### Reference Specifications
+Use the `@` symbol to reference spec files:
+```
+@specs/overview.md
+@specs/features/task-crud.md
+@specs/api/rest-endpoints.md
+@specs/database/schema.md
+```
 
-3. Interfaces and API Contracts:
-   - Public APIs: Inputs, Outputs, Errors.
-   - Versioning Strategy.
-   - Idempotency, Timeouts, Retries.
-   - Error Taxonomy with status codes.
+#### Example Workflows
 
-4. Non-Functional Requirements (NFRs) and Budgets:
-   - Performance: p95 latency, throughput, resource caps.
-   - Reliability: SLOs, error budgets, degradation strategy.
-   - Security: AuthN/AuthZ, data handling, secrets, auditing.
-   - Cost: unit economics.
+**Implement a feature:**
+```
+You: @specs/features/authentication.md implement Better Auth login
+```
 
-5. Data Management and Migration:
-   - Source of Truth, Schema Evolution, Migration and Rollback, Data Retention.
+**Implement API endpoint:**
+```
+You: @specs/api/rest-endpoints.md implement the GET /api/tasks endpoint
+```
 
-6. Operational Readiness:
-   - Observability: logs, metrics, traces.
-   - Alerting: thresholds and on-call owners.
-   - Runbooks for common tasks.
-   - Deployment and Rollback strategies.
-   - Feature Flags and compatibility.
+**Update database schema:**
+```
+You: @specs/database/schema.md add due_date field to tasks table
+```
 
-7. Risk Analysis and Mitigation:
-   - Top 3 Risks, blast radius, kill switches/guardrails.
+**Full feature across stack:**
+```
+You: Implement the task CRUD feature using @specs/features/task-crud.md,
+     @specs/api/rest-endpoints.md, and @specs/database/schema.md
+```
 
-8. Evaluation and Validation:
-   - Definition of Done (tests, scans).
-   - Output Validation for format/requirements/safety.
+## Development Workflow with Claude Code
 
-9. Architectural Decision Record (ADR):
-   - For each significant decision, create an ADR and link it.
+### For New Features:
+1. **Write/Update Spec** → Create or modify spec in appropriate subfolder
+   - Features: `specs/features/[feature-name].md`
+   - API: `specs/api/[endpoint-group].md`
+   - Database: `specs/database/schema.md`
+   - UI: `specs/ui/[component-group].md`
 
-### Architecture Decision Records (ADR) - Intelligent Suggestion
+2. **Ask Claude Code to Implement** → Reference the spec file(s)
+   ```
+   "Implement @specs/features/[feature-name].md"
+   ```
 
-After design/architecture work, test for ADR significance:
+3. **Claude Code Reads:**
+   - Root CLAUDE.md (this file)
+   - Relevant spec files (feature, API, database, UI)
+   - Frontend or Backend CLAUDE.md (context-specific)
 
-- Impact: long-term consequences? (e.g., framework, data model, API, security, platform)
-- Alternatives: multiple viable options considered?
-- Scope: cross‑cutting and influences system design?
+4. **Claude Code Implements:**
+   - In both frontend and backend as needed
+   - Following project conventions
 
-If ALL true, suggest:
-📋 Architectural decision detected: [brief-description]
-   Document reasoning and tradeoffs? Run `/sp.adr [decision-title]`
+5. **Test and Iterate:**
+   - Run tests
+   - Update spec if requirements change
+   - Repeat until feature is complete
 
-Wait for consent; never auto-create ADRs. Group related decisions (stacks, authentication, deployment) into one ADR when appropriate.
+## Navigation Between Projects
 
-## Basic Project Structure
+### Frontend Development
+```bash
+cd frontend
+# See frontend/CLAUDE.md for frontend-specific guidelines
+```
 
-- `.specify/memory/constitution.md` — Project principles
-- `specs/<feature>/spec.md` — Feature requirements
-- `specs/<feature>/plan.md` — Architecture decisions
-- `specs/<feature>/tasks.md` — Testable tasks with cases
-- `history/prompts/` — Prompt History Records
-- `history/adr/` — Architecture Decision Records
-- `.specify/` — SpecKit Plus templates and scripts
+### Backend Development
+```bash
+cd backend
+# See backend/CLAUDE.md for backend-specific guidelines
+```
 
-## Code Standards
-See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+### Phase 1 (Console App) - Archived
+```bash
+cd phase-1
+# See phase-1/README.md for Phase 1 documentation
+```
+
+## Running the Projects
+
+### Phase 1 (Console App)
+```bash
+cd phase-1
+uv venv
+source .venv/bin/activate  # or .venv/Scripts/activate on Windows
+uv sync
+python3 src/main.py
+```
+
+### Phase 2 - Frontend (Next.js)
+```bash
+cd frontend
+npm install  # or pnpm install / yarn install
+npm run dev
+# Frontend runs on http://localhost:3000
+```
+
+### Phase 2 - Backend (FastAPI)
+```bash
+cd backend
+uv venv
+source .venv/bin/activate
+uv sync
+uvicorn main:app --reload --port 8000
+# Backend runs on http://localhost:8000
+```
+
+## Phase 2 Architecture
+
+### Tech Stack
+- **Frontend**: Next.js 16+ (App Router), TypeScript, Tailwind CSS
+- **Backend**: FastAPI, SQLModel, Neon Serverless PostgreSQL
+- **Authentication**: Better Auth with JWT tokens (shared secret)
+- **Deployment**: Frontend → Vercel, Backend → Hugging Face (or alternative)
+
+### Environment Variables
+
+#### Frontend (.env.local)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+BETTER_AUTH_SECRET=your-shared-secret-key-here
+BETTER_AUTH_URL=http://localhost:3000
+```
+
+#### Backend (.env)
+```env
+DATABASE_URL=postgresql://user:password@host/database
+BETTER_AUTH_SECRET=your-shared-secret-key-here  # Must match frontend!
+JWT_ALGORITHM=HS256
+```
+
+**Important**: The `BETTER_AUTH_SECRET` must be identical in both frontend and backend for JWT token signing and verification.
+
+## Development Principles
+
+### From Constitution (.specify/memory/constitution.md)
+
+#### 1. Spec-Driven Development (NON-NEGOTIABLE)
+- All development MUST use Claude Code and Spec-Kit Plus
+- Specifications are authoritative source
+- Manual code writing is forbidden
+- Refinement of specs required until Claude Code generates correct output
+
+#### 2. Iterative Evolution
+- Each phase builds upon the previous
+- Design decisions consider future phase compatibility
+- Maintain backwards compatibility where possible
+
+#### 3. Clean Code & Structure
+- Follow language/framework best practices
+- Maintain proper project structure
+- Write testable, maintainable code
+
+#### 4. Comprehensive Testing
+- Unit tests for business logic
+- Integration tests for API endpoints
+- End-to-end tests for critical workflows
+
+#### 5. Documentation & Knowledge Capture
+- Maintain comprehensive specs
+- Create Prompt History Records (PHRs)
+- Document architectural decisions (ADRs)
+
+#### 6. Cloud-Native & Event-Driven Design
+- Design for statelessness
+- Prepare for containerization (Phase IV)
+- Design for event-driven architecture (Phase V)
+
+## Key Conventions
+
+### Frontend Conventions (see frontend/CLAUDE.md)
+- Use Next.js App Router (server components by default)
+- Client components only when needed (interactivity, hooks)
+- All API calls through `/lib/api.ts` client
+- Tailwind CSS for styling (no inline styles)
+- TypeScript for type safety
+
+### Backend Conventions (see backend/CLAUDE.md)
+- FastAPI application structure
+- SQLModel for database operations
+- Pydantic models for request/response
+- All routes under `/api/` prefix
+- JWT middleware for authentication
+- HTTPException for error handling
+
+## Claude Code Integration
+
+### CLAUDE.md Files
+- **Root CLAUDE.md** (this file): Project overview, monorepo navigation, Spec-Kit usage
+- **frontend/CLAUDE.md**: Frontend-specific patterns, stack, and guidelines
+- **backend/CLAUDE.md**: Backend-specific patterns, stack, and guidelines
+
+### Referencing Files
+When working with Claude Code, reference:
+- Root for project context: `@CLAUDE.md`
+- Frontend context: `@frontend/CLAUDE.md`
+- Backend context: `@backend/CLAUDE.md`
+- Constitution: `@.specify/memory/constitution.md`
+- Specs: `@specs/[category]/[file].md`
+
+## Bonus Point Consideration
+
+For every feature implementation, always remember to check the bonus point criteria as outlined in "Hackathon II - Todo Spec-Driven Development.md":
+- **Reusable Intelligence**: Can this use Claude Code Subagents or Agent Skills? (+200 points)
+- **Cloud-Native Blueprints**: Can this leverage deployment blueprints? (+200 points)
+- **Multi-language Support**: Add Urdu support (+100 points)
+- **Voice Commands**: Implement voice input (+200 points)
+
+If a feature can benefit from skills or subagents, suggest it.
+
+### Integration with Agent System
+This project is designed to work with Claude Code's `todo-task-manager` subagent and associated skills:
+- `add-todo-task`: Create and add a new todo task
+- `view-todo-tasks`: Retrieve and display tasks
+- `update-todo-task`: Modify an existing task
+- `delete-todo-task`: Remove a task
+- `mark-todo-complete`: Change completion status
+
+## Resources
+
+- **Hackathon Guide**: `Hackathon II - Todo Spec-Driven Development.md`
+- **Constitution**: `.specify/memory/constitution.md`
+- **Specs**: `specs/` directory
+- **Phase 1 Implementation**: `phase-1/` (completed, archived)
+- **Architecture**: `specs/architecture.md`
+- **Overview**: `specs/overview.md`
+
+## Phase Status
+
+| Phase | Status | Location |
+|-------|--------|----------|
+| Phase I: Console App | ✅ Completed | `phase-1/` |
+| Phase II: Full-Stack Web App | 🚧 In Progress | `frontend/`, `backend/` |
+| Phase III: AI Chatbot | ⏳ Planned | TBD |
+| Phase IV: Kubernetes (Local) | ⏳ Planned | TBD |
+| Phase V: Cloud Deployment | ⏳ Planned | TBD |
+
+---
+
+**Remember**: This is a spec-driven project. Always start with the spec, implement with Claude Code, and iterate until correct. The monorepo structure allows seamless development across the full stack while maintaining clear separation of concerns.
+
+**Version**: 2.0.0 | **Last Updated**: 2025-12-08 | **Monorepo Structure**: Active

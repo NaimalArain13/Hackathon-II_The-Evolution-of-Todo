@@ -1,0 +1,17 @@
+[project]
+name = "todo-app"
+version = "0.1.0"
+description = "A command-line todo application with interactive UI"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "rich>=13.0.0",
+    "inquirer>=3.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+todo-app = "src.main:main"

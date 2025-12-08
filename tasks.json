@@ -1,0 +1,28 @@
+{
+  "tasks": {
+    "2": {
+      "id": 2,
+      "title": "task 2",
+      "description": "Task description (optional)",
+      "status": "completed"
+    },
+    "3": {
+      "id": 3,
+      "title": "Test task",
+      "description": "Test description",
+      "status": "completed"
+    },
+    "4": {
+      "id": 4,
+      "title": "Updated final test task",
+      "description": "Testing the complete application",
+      "status": "completed"
+    },
+    "6": {
+      "id": 6,
+      "title": "wash dishes",
+      "description": "no",
+      "status": "completed"
+    }
+  }
+}
