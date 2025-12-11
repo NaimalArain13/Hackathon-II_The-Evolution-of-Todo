@@ -1,0 +1,228 @@
+# Database Connection Contract
+# Feature: 001-backend-setup
+# Date: 2025-12-10
+# Purpose: Define database connectivity contract for Neon PostgreSQL
+
+---
+connection:
+  provider: Neon Serverless PostgreSQL
+  protocol: postgresql
+  version: "15+"  # Neon uses PostgreSQL 15 or higher
+  authentication:
+    method: password
+    ssl_mode: require  # SSL/TLS required for Neon connections
+
+configuration:
+  environment_variable: DATABASE_URL
+  format: "postgresql://[user]:[password]@[host]:[port]/[database]?sslmode=require"
+
+  example:
+    development: "postgresql://username:password@ep-cool-name.us-east-2.aws.neon.tech:5432/neondb?sslmode=require"
+    notes:
+      - "Replace [user], [password], [host], [port], [database] with actual values"
+      - "Neon provides this connection string in the database dashboard"
+      - "Never commit DATABASE_URL to version control"
+
+  connection_pool:
+    engine: SQLAlchemy (via SQLModel)
+    pool_class: QueuePool  # Default for SQLAlchemy
+    pool_size: 5  # Number of persistent connections
+    max_overflow: 10  # Additional connections allowed beyond pool_size
+    pool_timeout: 30  # Seconds to wait for available connection
+    pool_recycle: 3600  # Recycle connections after 1 hour (Neon recommendation)
+    pool_pre_ping: true  # Test connection health before using
+    echo: true  # Log SQL statements (development only)
+
+  timeouts:
+    connect_timeout: 10  # Seconds to wait for initial connection
+    command_timeout: 30  # Seconds to wait for query execution
+    idle_in_transaction_timeout: 300  # Close idle transactions after 5 minutes
+
+session_management:
+  pattern: dependency_injection
+  lifecycle: per_request  # New session per HTTP request
+  context_manager: true  # Use 'with Session(engine) as session'
+
+  transaction_behavior:
+    auto_commit: false  # Manual commit required
+    auto_flush: true  # Auto-flush before queries
+    expire_on_commit: false  # Keep objects usable after commit
+
+  cleanup:
+    automatic: true  # Session closed automatically via context manager
+    on_error: rollback  # Rollback transaction on exception
+    on_success: commit  # Commit transaction on successful completion
+
+startup_behavior:
+  validate_connection: true  # Check DATABASE_URL on startup
+  fail_fast: true  # Exit immediately if connection fails
+  create_tables: true  # Run SQLModel.metadata.create_all()
+  retry_strategy:
+    enabled: false  # No retry on startup (fail fast for quick feedback)
+    # Future: Consider retry with exponential backoff for production
+
+  initialization_steps:
+    - step: 1
+      action: Load DATABASE_URL from environment
+      failure: Raise ValueError with clear message
+
+    - step: 2
+      action: Create SQLModel engine
+      failure: Raise connection error with details
+
+    - step: 3
+      action: Test connection (optional ping)
+      failure: Raise connection error
+
+    - step: 4
+      action: Create all tables via SQLModel.metadata.create_all()
+      failure: Raise schema creation error
+
+error_handling:
+  missing_env_var:
+    error_type: ValueError
+    message: "DATABASE_URL environment variable is not set"
+    action: Exit application
+
+  invalid_format:
+    error_type: ConnectionError
+    message: "Invalid DATABASE_URL format"
+    action: Exit application with format example
+
+  connection_refused:
+    error_type: OperationalError
+    message: "Cannot connect to Neon database"
+    action: Check network, credentials, Neon status
+
+  ssl_error:
+    error_type: SSLError
+    message: "SSL connection required but not configured"
+    action: Ensure sslmode=require in connection string
+
+  authentication_failed:
+    error_type: AuthenticationError
+    message: "Invalid database credentials"
+    action: Verify username/password in Neon dashboard
+
+monitoring:
+  connection_health:
+    pool_pre_ping: true  # Test before use
+    periodic_check: false  # Not needed with pool_pre_ping
+
+  logging:
+    level: INFO
+    sql_queries: true  # Development only (echo=True)
+    connection_events: true  # Log pool checkout/checkin
+    error_details: true  # Full stacktrace on errors
+
+security:
+  credentials:
+    storage: environment_variable  # .env file, not in code
+    version_control: excluded  # Add .env to .gitignore
+    rotation: recommended_quarterly
+
+  ssl_tls:
+    required: true
+    sslmode: require  # Enforce encrypted connections
+    certificate_validation: default  # Use system certificates
+
+  network:
+    firewall: Neon manages (no configuration needed)
+    ip_whitelist: not_required  # Neon accepts connections from any IP
+    # Note: Neon project can enable IP restrictions in dashboard
+
+scalability:
+  horizontal:
+    read_replicas: not_applicable  # Phase 2 uses single database
+    connection_pooling: yes  # Handled by SQLAlchemy
+    load_balancing: Neon_managed
+
+  vertical:
+    compute_units: Neon_autoscales  # Serverless auto-scaling
+    storage: Neon_autoscales  # Grows with data
+    max_connections: 100  # Neon free tier limit
+
+  phase2_limits:
+    concurrent_users: "<100"
+    expected_qps: "<10"  # Queries per second
+    data_size: "<100MB"
+
+testing:
+  test_database:
+    provider: SQLite (in-memory)
+    connection_string: "sqlite:///:memory:"
+    isolation: per_test  # Fresh database for each test
+    real_neon: optional  # Can test against Neon branch (future)
+
+  test_patterns:
+    dependency_override: true  # Replace get_session in tests
+    fixtures: pytest_fixtures
+    cleanup: automatic  # In-memory DB discarded after test
+
+deployment:
+  environment_variables:
+    - name: DATABASE_URL
+      required: true
+      example: "postgresql://user:password@host:5432/database?sslmode=require"
+      source: Neon_dashboard
+
+    - name: DB_ECHO
+      required: false
+      default: "false"
+      values: ["true", "false"]
+      description: Enable SQL query logging
+
+    - name: DB_POOL_SIZE
+      required: false
+      default: "5"
+      description: Connection pool size
+
+  platform_specific:
+    vercel: Supported (add env var in dashboard)
+    hugging_face: Supported (add secret in Space settings)
+    railway: Supported (add env var)
+    render: Supported (add env var)
+    fly_io: Supported (add secret)
+
+neon_specific:
+  features_used:
+    - serverless_postgres: true
+    - autoscaling: true
+    - instant_branching: false  # Future: use for testing
+    - point_in_time_restore: available  # Neon provides PITR
+
+  free_tier_limits:
+    storage: 3_GiB
+    logical_size: 0.25_GiB
+    compute_hours: 200_per_month
+    branches: 10
+    projects: 1
+
+  connection_string_parts:
+    username: Provided by Neon
+    password: Provided by Neon (can be reset)
+    host: "ep-[name].[region].aws.neon.tech"
+    port: 5432
+    database: neondb  # Default, can create more
+    sslmode: require
+
+future_enhancements:
+  phase3:
+    - Neon branching for development/staging
+    - Connection pooling optimization
+    - Query performance monitoring
+
+  phase4:
+    - Read replica support (if Neon adds feature)
+    - Connection retry with exponential backoff
+    - Circuit breaker pattern
+
+  phase5:
+    - Database sharding (if needed)
+    - Multi-region deployment
+    - Advanced monitoring and alerting
+
+---
+# Contract Version: 1.0.0
+# Last Updated: 2025-12-10
+# Status: Active
