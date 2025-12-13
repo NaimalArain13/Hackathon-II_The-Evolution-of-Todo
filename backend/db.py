@@ -24,10 +24,11 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Validate DATABASE_URL exists
+# For Hugging Face Spaces, DATABASE_URL should be set as a secret
 if not DATABASE_URL:
     raise ValueError(
         "DATABASE_URL environment variable is not set. "
-        "Please create a .env file with your Neon PostgreSQL connection string. "
+        "Please set it in Hugging Face Space secrets. "
         "Format: postgresql://user:password@host:port/database?sslmode=require"
     )
 
@@ -53,6 +54,21 @@ engine = create_engine(
 )
 
 
+def drop_all_tables():
+    """
+    Drop all database tables defined by SQLModel models.
+
+    WARNING: This will delete all data in the database!
+    Only use in development or when resetting the database schema.
+
+    This function is useful when:
+    - Schema has changed and tables need to be recreated
+    - Starting fresh in development
+    - Fixing schema mismatches (e.g., type incompatibilities)
+    """
+    SQLModel.metadata.drop_all(engine)
+
+
 def create_db_and_tables():
     """
     Create all database tables defined by SQLModel models.
@@ -61,11 +77,20 @@ def create_db_and_tables():
     It will create tables for all models that inherit from SQLModel
     and have table=True.
 
+    If RESET_DB environment variable is set to "true", it will drop
+    all existing tables before creating new ones (useful for development).
+
     Example:
         @app.on_event("startup")
         def on_startup():
             create_db_and_tables()
     """
+    # Optionally drop all tables first (for development/reset)
+    reset_db = os.getenv("RESET_DB", "false").lower() == "true"
+    if reset_db:
+        print("WARNING: Dropping all existing tables (RESET_DB=true)")
+        drop_all_tables()
+
     SQLModel.metadata.create_all(engine)
 
 

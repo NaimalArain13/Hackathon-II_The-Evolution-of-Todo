@@ -47,8 +47,8 @@ def client_fixture(session: Session):
     """
     Create FastAPI TestClient with overridden database session.
 
-    This fixture will be updated once main.py is created to override
-    the get_session dependency.
+    Overrides the get_session dependency to use the test database session.
+    This ensures all API endpoints use the in-memory test database.
 
     Usage:
         def test_endpoint(client: TestClient):
@@ -56,17 +56,13 @@ def client_fixture(session: Session):
             assert response.status_code == 200
     """
     # Import here to avoid circular dependencies
-    # Will be updated when main.py is created
-    # from main import app
-    # from db import get_session
-    #
-    # def get_session_override():
-    #     yield session
-    #
-    # app.dependency_overrides[get_session] = get_session_override
-    # client = TestClient(app)
-    # yield client
-    # app.dependency_overrides.clear()
+    from main import app
+    from db import get_session
 
-    # For now, return None - will be implemented in Phase 4
-    return None
+    def get_session_override():
+        yield session
+
+    app.dependency_overrides[get_session] = get_session_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()

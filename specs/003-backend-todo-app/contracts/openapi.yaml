@@ -1,0 +1,761 @@
+openapi: 3.0.3
+info:
+  title: Todo App API - Feature 003 (Backend Todo API with Intermediate Features)
+  description: |
+    RESTful API for todo task management with intermediate features including:
+    - Task CRUD operations
+    - Priority management (high, medium, low, none)
+    - Category organization (work, personal, shopping, health, other)
+    - Search functionality (keyword search in title/description)
+    - Multi-criteria filtering (status, priority, category)
+    - Flexible sorting (by date, title, priority, status)
+
+    **Authentication**: All endpoints require JWT bearer token authentication.
+
+    **User Isolation**: Users can only access their own tasks. The `user_id` in the path must match the authenticated user's ID from the JWT token.
+
+    **Technology Stack**:
+    - Backend: FastAPI + SQLModel
+    - Database: Neon Serverless PostgreSQL
+    - Authentication: Better Auth JWT tokens
+
+  version: 1.0.0
+  contact:
+    name: Hackathon II Team
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.production.example.com
+    description: Production server (TBD)
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: tasks
+    description: Task management operations
+
+paths:
+  /api/{user_id}/tasks:
+    get:
+      tags:
+        - tasks
+      summary: List user tasks with optional filters and sorting
+      description: |
+        Retrieve all tasks for the authenticated user with optional filtering by status, priority, category, and keyword search. Supports sorting by multiple fields.
+
+        **Query Parameters**:
+        - `status`: Filter by completion status (all, pending, completed)
+        - `priority`: Filter by priority level (high, medium, low, none)
+        - `category`: Filter by category (work, personal, shopping, health, other)
+        - `search`: Keyword search in title and description (case-insensitive)
+        - `sort_by`: Field to sort by (created_at, updated_at, title, priority, status)
+        - `order`: Sort order (asc, desc)
+
+        **Success Criteria**:
+        - Response time < 1 second for up to 100 tasks (SC-002)
+        - Search completes within 2 seconds for 1000 tasks (SC-003)
+        - 100% user isolation enforced (SC-004)
+
+      operationId: listTasks
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (must match authenticated user's ID from JWT token)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+
+        - name: status
+          in: query
+          required: false
+          description: Filter by task completion status
+          schema:
+            type: string
+            enum: [all, pending, completed]
+            default: all
+          example: pending
+
+        - name: priority
+          in: query
+          required: false
+          description: Filter by task priority level
+          schema:
+            type: string
+            enum: [high, medium, low, none]
+          example: high
+
+        - name: category
+          in: query
+          required: false
+          description: Filter by task category
+          schema:
+            type: string
+            enum: [work, personal, shopping, health, other]
+          example: work
+
+        - name: search
+          in: query
+          required: false
+          description: Keyword to search in task title and description (case-insensitive)
+          schema:
+            type: string
+            maxLength: 200
+          example: meeting
+
+        - name: sort_by
+          in: query
+          required: false
+          description: Field to sort results by
+          schema:
+            type: string
+            enum: [created_at, updated_at, title, priority, status]
+            default: created_at
+          example: priority
+
+        - name: order
+          in: query
+          required: false
+          description: Sort order (ascending or descending)
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          example: desc
+
+      responses:
+        '200':
+          description: Successfully retrieved tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+              examples:
+                allTasks:
+                  summary: All tasks (no filters)
+                  value:
+                    - id: 1
+                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                      title: "Complete project proposal"
+                      description: "Draft and submit Q1 proposal"
+                      completed: false
+                      priority: "high"
+                      category: "work"
+                      created_at: "2025-12-12T10:30:00Z"
+                      updated_at: "2025-12-12T10:30:00Z"
+                    - id: 2
+                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                      title: "Buy groceries"
+                      description: "Milk, eggs, bread"
+                      completed: false
+                      priority: "medium"
+                      category: "shopping"
+                      created_at: "2025-12-12T09:15:00Z"
+                      updated_at: "2025-12-12T09:15:00Z"
+
+                filteredTasks:
+                  summary: High priority work tasks
+                  value:
+                    - id: 1
+                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                      title: "Complete project proposal"
+                      description: "Draft and submit Q1 proposal"
+                      completed: false
+                      priority: "high"
+                      category: "work"
+                      created_at: "2025-12-12T10:30:00Z"
+                      updated_at: "2025-12-12T10:30:00Z"
+
+                emptyResult:
+                  summary: No tasks match filters
+                  value: []
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - tasks
+      summary: Create a new task
+      description: |
+        Create a new task for the authenticated user.
+
+        **Required Fields**:
+        - `title`: Task title (1-200 characters)
+
+        **Optional Fields**:
+        - `description`: Task details (max 1000 characters)
+        - `priority`: Priority level (defaults to "none")
+        - `category`: Category (defaults to "other")
+
+        **Success Criteria**:
+        - Task creation completes within 1 second (SC-001)
+        - 95% success rate on first attempt (SC-008)
+
+      operationId: createTask
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (must match authenticated user's ID from JWT token)
+          schema:
+            type: string
+            format: uuid
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+            examples:
+              minimalTask:
+                summary: Minimal task (title only)
+                value:
+                  title: "Call dentist"
+
+              fullTask:
+                summary: Task with all fields
+                value:
+                  title: "Complete project proposal"
+                  description: "Draft and submit Q1 proposal to management"
+                  priority: "high"
+                  category: "work"
+
+      responses:
+        '201':
+          description: Task successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 1
+                user_id: "550e8400-e29b-41d4-a716-446655440000"
+                title: "Complete project proposal"
+                description: "Draft and submit Q1 proposal"
+                completed: false
+                priority: "high"
+                category: "work"
+                created_at: "2025-12-12T10:30:00Z"
+                updated_at: "2025-12-12T10:30:00Z"
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/{user_id}/tasks/{task_id}:
+    get:
+      tags:
+        - tasks
+      summary: Get a specific task by ID
+      description: |
+        Retrieve detailed information about a specific task.
+
+        **User Isolation**: Users can only access their own tasks. Attempting to access another user's task returns 403 Forbidden.
+
+      operationId: getTask
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (must match authenticated user's ID from JWT token)
+          schema:
+            type: string
+            format: uuid
+
+        - name: task_id
+          in: path
+          required: true
+          description: Task ID to retrieve
+          schema:
+            type: integer
+            example: 1
+
+      responses:
+        '200':
+          description: Task successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 1
+                user_id: "550e8400-e29b-41d4-a716-446655440000"
+                title: "Complete project proposal"
+                description: "Draft and submit Q1 proposal"
+                completed: false
+                priority: "high"
+                category: "work"
+                created_at: "2025-12-12T10:30:00Z"
+                updated_at: "2025-12-12T10:30:00Z"
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - tasks
+      summary: Update an existing task
+      description: |
+        Update one or more fields of an existing task. All fields are optional; only provided fields will be updated.
+
+        **Updatable Fields**:
+        - `title`: Task title
+        - `description`: Task description
+        - `completed`: Completion status
+        - `priority`: Priority level
+        - `category`: Category
+
+        **Note**: The `updated_at` timestamp is automatically updated.
+
+      operationId: updateTask
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (must match authenticated user's ID from JWT token)
+          schema:
+            type: string
+            format: uuid
+
+        - name: task_id
+          in: path
+          required: true
+          description: Task ID to update
+          schema:
+            type: integer
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+            examples:
+              updatePriority:
+                summary: Update priority only
+                value:
+                  priority: "medium"
+
+              updateMultipleFields:
+                summary: Update multiple fields
+                value:
+                  title: "Updated title"
+                  priority: "low"
+                  category: "personal"
+                  completed: true
+
+      responses:
+        '200':
+          description: Task successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              example:
+                id: 1
+                user_id: "550e8400-e29b-41d4-a716-446655440000"
+                title: "Updated title"
+                description: "Draft and submit Q1 proposal"
+                completed: true
+                priority: "low"
+                category: "personal"
+                created_at: "2025-12-12T10:30:00Z"
+                updated_at: "2025-12-12T11:00:00Z"
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - tasks
+      summary: Delete a task
+      description: |
+        Permanently delete a task. This action cannot be undone.
+
+        **User Isolation**: Users can only delete their own tasks.
+
+      operationId: deleteTask
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (must match authenticated user's ID from JWT token)
+          schema:
+            type: string
+            format: uuid
+
+        - name: task_id
+          in: path
+          required: true
+          description: Task ID to delete
+          schema:
+            type: integer
+
+      responses:
+        '204':
+          description: Task successfully deleted (no content returned)
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/{user_id}/tasks/{task_id}/complete:
+    patch:
+      tags:
+        - tasks
+      summary: Toggle task completion status
+      description: |
+        Toggle the completion status of a task. If the task is currently incomplete, it will be marked as complete, and vice versa.
+
+        **Behavior**:
+        - `completed: false` → `completed: true`
+        - `completed: true` → `completed: false`
+
+        **Note**: The `updated_at` timestamp is automatically updated.
+
+      operationId: toggleTaskCompletion
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID (must match authenticated user's ID from JWT token)
+          schema:
+            type: string
+            format: uuid
+
+        - name: task_id
+          in: path
+          required: true
+          description: Task ID to toggle completion status
+          schema:
+            type: integer
+
+      responses:
+        '200':
+          description: Task completion status successfully toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+              examples:
+                markedComplete:
+                  summary: Task marked as complete
+                  value:
+                    id: 1
+                    user_id: "550e8400-e29b-41d4-a716-446655440000"
+                    title: "Complete project proposal"
+                    description: "Draft and submit Q1 proposal"
+                    completed: true
+                    priority: "high"
+                    category: "work"
+                    created_at: "2025-12-12T10:30:00Z"
+                    updated_at: "2025-12-12T15:45:00Z"
+
+                markedIncomplete:
+                  summary: Task marked as incomplete
+                  value:
+                    id: 1
+                    user_id: "550e8400-e29b-41d4-a716-446655440000"
+                    title: "Complete project proposal"
+                    description: "Draft and submit Q1 proposal"
+                    completed: false
+                    priority: "high"
+                    category: "work"
+                    created_at: "2025-12-12T10:30:00Z"
+                    updated_at: "2025-12-12T16:00:00Z"
+
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT bearer token obtained from Better Auth authentication.
+        Include the token in the Authorization header: `Authorization: Bearer <token>`
+
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - user_id
+        - title
+        - completed
+        - priority
+        - category
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: Unique task identifier
+          example: 1
+
+        user_id:
+          type: string
+          format: uuid
+          description: Owner user ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title (required, 1-200 characters)
+          example: "Complete project proposal"
+
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Task description (optional, max 1000 characters)
+          example: "Draft and submit Q1 proposal to management"
+
+        completed:
+          type: boolean
+          description: Task completion status
+          example: false
+
+        priority:
+          type: string
+          enum: [high, medium, low, none]
+          description: Task priority level
+          example: "high"
+
+        category:
+          type: string
+          enum: [work, personal, shopping, health, other]
+          description: Task category
+          example: "work"
+
+        created_at:
+          type: string
+          format: date-time
+          description: Task creation timestamp (UTC, ISO 8601 format)
+          example: "2025-12-12T10:30:00Z"
+
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp (UTC, ISO 8601 format)
+          example: "2025-12-12T10:30:00Z"
+
+    TaskCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Task title (required, 1-200 characters)
+          example: "Complete project proposal"
+
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Task description (optional, max 1000 characters)
+          example: "Draft and submit Q1 proposal to management"
+
+        priority:
+          type: string
+          enum: [high, medium, low, none]
+          default: none
+          description: Task priority level (optional, defaults to "none")
+          example: "high"
+
+        category:
+          type: string
+          enum: [work, personal, shopping, health, other]
+          default: other
+          description: Task category (optional, defaults to "other")
+          example: "work"
+
+    TaskUpdate:
+      type: object
+      description: All fields are optional; only provided fields will be updated
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Updated task title
+          example: "Updated title"
+
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Updated task description
+          example: "Updated description"
+
+        completed:
+          type: boolean
+          description: Updated completion status
+          example: true
+
+        priority:
+          type: string
+          enum: [high, medium, low, none]
+          description: Updated priority level
+          example: "medium"
+
+        category:
+          type: string
+          enum: [work, personal, shopping, health, other]
+          description: Updated category
+          example: "personal"
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          oneOf:
+            - type: string
+              description: Simple error message
+              example: "Task not found"
+            - type: array
+              description: Detailed validation errors (Pydantic format)
+              items:
+                type: object
+                properties:
+                  loc:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: integer
+                    description: Error location (field path)
+                    example: ["body", "priority"]
+                  msg:
+                    type: string
+                    description: Error message
+                    example: "Input should be 'high', 'medium', 'low', or 'none'"
+                  type:
+                    type: string
+                    description: Error type
+                    example: "enum"
+
+  responses:
+    BadRequest:
+      description: Invalid request data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidPriority:
+              summary: Invalid priority value
+              value:
+                detail: "Invalid priority. Must be one of: ['high', 'medium', 'low', 'none']"
+
+            invalidTitle:
+              summary: Title validation error
+              value:
+                detail:
+                  - loc: ["body", "title"]
+                    msg: "String should have at least 1 character"
+                    type: "string_too_short"
+
+            invalidCategory:
+              summary: Invalid category value
+              value:
+                detail: "Invalid category. Must be one of: ['work', 'personal', 'shopping', 'health', 'other']"
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: Missing JWT token
+              value:
+                detail: "Not authenticated"
+
+            expiredToken:
+              summary: Expired JWT token
+              value:
+                detail: "Token has expired"
+
+            invalidToken:
+              summary: Invalid JWT token
+              value:
+                detail: "Invalid authentication credentials"
+
+    Forbidden:
+      description: User does not have permission to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            accessDenied:
+              summary: Attempting to access another user's task
+              value:
+                detail: "Access denied. Cannot access other users' tasks"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            taskNotFound:
+              summary: Task ID does not exist
+              value:
+                detail: "Task not found"

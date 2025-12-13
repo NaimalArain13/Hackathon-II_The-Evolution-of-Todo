@@ -7,6 +7,7 @@ This module initializes the FastAPI application with:
 - API routes and endpoints
 """
 
+import os
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
@@ -18,7 +19,7 @@ import models  # noqa: F401
 from db import create_db_and_tables, get_session
 
 # Import routers
-from routes import auth
+from routes import auth, tasks
 
 # Create FastAPI application
 app = FastAPI(
@@ -28,14 +29,28 @@ app = FastAPI(
 )
 
 # Configure CORS for frontend integration
+# For Hugging Face Spaces, allow all origins by default
+# You can restrict this in production by setting ALLOW_ALL_ORIGINS=false
+allow_all_origins = os.getenv("ALLOW_ALL_ORIGINS", "true").lower() == "true"
+
+if allow_all_origins:
+    cors_origins = ["*"]
+else:
+    # Specific origins (comma-separated in ALLOWED_ORIGINS env var)
+    allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+    cors_origins = [
+        origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
+    ]
+    # Default to localhost if none specified
+    if not cors_origins:
+        cors_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js development server
-        "http://127.0.0.1:3000",  # Alternative localhost
-        # Add production frontend URL when deployed
-        # "https://your-frontend.vercel.app",
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
@@ -43,6 +58,7 @@ app.add_middleware(
 
 # Register API routers
 app.include_router(auth.router, prefix="/api", tags=["authentication"])
+app.include_router(tasks.router, prefix="/api", tags=["tasks"])
 
 # Type alias for database session dependency
 SessionDep = Annotated[Session, Depends(get_session)]
