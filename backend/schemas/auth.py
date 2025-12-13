@@ -49,9 +49,7 @@ class ErrorResponse(BaseModel):
     class Config:
         """Pydantic configuration with examples for API docs"""
 
-        json_schema_extra = {
-            "example": {"detail": "Invalid email or password"}
-        }
+        json_schema_extra = {"example": {"detail": "Invalid email or password"}}
 
 
 class UserRegisterRequest(BaseModel):
@@ -79,7 +77,7 @@ class UserRegisterRequest(BaseModel):
     email: EmailStr = Field(
         ...,
         description="User's email address (must be unique)",
-        json_schema_extra={"example": "user@example.com"}
+        json_schema_extra={"example": "user@example.com"},
     )
 
     name: str = Field(
@@ -87,14 +85,15 @@ class UserRegisterRequest(BaseModel):
         min_length=1,
         max_length=100,
         description="User's display name",
-        json_schema_extra={"example": "John Doe"}
+        json_schema_extra={"example": "John Doe"},
     )
 
     password: str = Field(
         ...,
         min_length=8,
-        description="Strong password (min 8 chars, 1 number, 1 special char)",
-        json_schema_extra={"example": "SecurePass123!"}
+        max_length=72,  # Bcrypt's maximum byte limit
+        description="Strong password (8-72 chars, 1 number, 1 special char)",
+        json_schema_extra={"example": "SecurePass123!"},
     )
 
     @field_validator("password")
@@ -133,7 +132,7 @@ class UserRegisterRequest(BaseModel):
             "example": {
                 "email": "newuser@example.com",
                 "name": "New User",
-                "password": "SecurePass123!"
+                "password": "SecurePass123!",
             }
         }
 
@@ -159,23 +158,20 @@ class UserLoginRequest(BaseModel):
     email: EmailStr = Field(
         ...,
         description="User's email address",
-        json_schema_extra={"example": "user@example.com"}
+        json_schema_extra={"example": "user@example.com"},
     )
 
     password: str = Field(
         ...,
         description="User's password",
-        json_schema_extra={"example": "SecurePass123!"}
+        json_schema_extra={"example": "SecurePass123!"},
     )
 
     class Config:
         """Pydantic configuration"""
 
         json_schema_extra = {
-            "example": {
-                "email": "user@example.com",
-                "password": "SecurePass123!"
-            }
+            "example": {"email": "user@example.com", "password": "SecurePass123!"}
         }
 
 
@@ -223,7 +219,7 @@ class UserResponse(BaseModel):
                 "name": "John Doe",
                 "created_at": "2025-12-11T10:30:00Z",
                 "updated_at": "2025-12-11T10:30:00Z",
-                "is_active": True
+                "is_active": True,
             }
         }
 
@@ -255,19 +251,16 @@ class AuthResponse(BaseModel):
     access_token: str = Field(
         ...,
         description="JWT access token (valid for 7 days)",
-        json_schema_extra={"example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+        json_schema_extra={"example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."},
     )
 
     token_type: str = Field(
         default="bearer",
         description="Token type (always 'bearer')",
-        json_schema_extra={"example": "bearer"}
+        json_schema_extra={"example": "bearer"},
     )
 
-    user: UserResponse = Field(
-        ...,
-        description="User data (without password_hash)"
-    )
+    user: UserResponse = Field(..., description="User data (without password_hash)")
 
     class Config:
         """Pydantic configuration"""
@@ -282,8 +275,8 @@ class AuthResponse(BaseModel):
                     "name": "John Doe",
                     "created_at": "2025-12-11T10:30:00Z",
                     "updated_at": "2025-12-11T10:30:00Z",
-                    "is_active": True
-                }
+                    "is_active": True,
+                },
             }
         }
 
@@ -307,14 +300,10 @@ class UserProfileUpdateRequest(BaseModel):
         min_length=1,
         max_length=100,
         description="New display name",
-        json_schema_extra={"example": "Jane Doe"}
+        json_schema_extra={"example": "Jane Doe"},
     )
 
     class Config:
         """Pydantic configuration"""
 
-        json_schema_extra = {
-            "example": {
-                "name": "Updated Name"
-            }
-        }
+        json_schema_extra = {"example": {"name": "Updated Name"}}
