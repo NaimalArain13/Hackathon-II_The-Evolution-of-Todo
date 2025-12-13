@@ -1,0 +1,354 @@
+# Landing Page Components Contract
+# Feature: 005-landing-page
+# Date: 2025-12-13
+
+---
+
+# Component Directory Structure
+
+component_structure:
+  base_path: "frontend/src/components/landing"
+  files:
+    - "HeroSection.tsx"
+    - "FeaturesSection.tsx"
+    - "HowItWorksSection.tsx"
+    - "AppPreviewSection.tsx"
+    - "TestimonialsSection.tsx"
+    - "CTASection.tsx"
+    - "LandingNavbar.tsx"
+    - "LandingFooter.tsx"
+    - "index.ts"  # Barrel export
+
+---
+
+# Component Specifications
+
+components:
+
+  # ===== LANDING NAVBAR =====
+  LandingNavbar:
+    type: "client"  # Needs scroll state and mobile menu toggle
+    description: "Sticky navigation bar with logo, nav links, and auth buttons"
+    file: "LandingNavbar.tsx"
+
+    props:
+      logo:
+        type: "object"
+        properties:
+          src: { type: "string", optional: true }
+          text: { type: "string", required: true }
+      navItems:
+        type: "NavItem[]"
+        required: true
+      loginHref:
+        type: "string"
+        default: "/signin"
+      signupHref:
+        type: "string"
+        default: "/signup"
+
+    state:
+      isScrolled:
+        type: "boolean"
+        default: false
+        purpose: "Toggle background on scroll"
+      isMobileMenuOpen:
+        type: "boolean"
+        default: false
+        purpose: "Mobile menu visibility"
+
+    dependencies:
+      - "lucide-react"  # Menu, X icons
+      - "framer-motion"  # Menu animations
+      - "@/components/ui/button"
+
+    responsive:
+      mobile: "Hamburger menu, logo only"
+      tablet: "Logo + condensed nav"
+      desktop: "Full navigation bar"
+
+  # ===== HERO SECTION =====
+  HeroSection:
+    type: "server"  # Static content
+    description: "Above-the-fold hero with headline, subheadline, CTAs, and visual"
+    file: "HeroSection.tsx"
+
+    props:
+      badge:
+        type: "string"
+        optional: true
+        example: "✨ Your Personal Task Manager"
+      headline:
+        type: "string"
+        required: true
+        example: "Organize Your Life, One Task at a Time"
+      subheadline:
+        type: "string"
+        required: true
+      primaryCTA:
+        type: "object"
+        properties:
+          text: { type: "string", required: true }
+          href: { type: "string", required: true }
+      secondaryCTA:
+        type: "object"
+        optional: true
+      trustText:
+        type: "string"
+        optional: true
+        example: "No credit card required • Free forever"
+      heroImage:
+        type: "object"
+        optional: true
+
+    animations:
+      - type: "fade_in_up"
+        target: "headline"
+        delay: 0
+      - type: "fade_in_up"
+        target: "subheadline"
+        delay: 0.1
+      - type: "fade_in_up"
+        target: "cta_buttons"
+        delay: 0.2
+      - type: "fade_in_right"
+        target: "hero_image"
+        delay: 0.3
+
+    styling:
+      background: "gradient from primary-50 to white"
+      padding: "py-20 lg:py-32"
+      layout: "grid lg:grid-cols-2 gap-12"
+
+  # ===== FEATURES SECTION =====
+  FeaturesSection:
+    type: "server"
+    description: "Grid of feature cards showcasing app capabilities"
+    file: "FeaturesSection.tsx"
+
+    props:
+      overline:
+        type: "string"
+        optional: true
+        default: "FEATURES"
+      title:
+        type: "string"
+        required: true
+      subtitle:
+        type: "string"
+        optional: true
+      features:
+        type: "Feature[]"
+        required: true
+        min_length: 4
+
+    sub_components:
+      FeatureCard:
+        props:
+          icon: "string"
+          iconColor: "string"
+          bgColor: "string"
+          title: "string"
+          description: "string"
+        animations:
+          hover: "translateY(-4px), shadow-hover"
+          scroll_reveal: "fade_in_up with stagger"
+
+    styling:
+      background: "white"
+      padding: "py-20"
+      grid: "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+
+  # ===== HOW IT WORKS SECTION =====
+  HowItWorksSection:
+    type: "server"
+    description: "3-step process with numbered circles and connecting lines"
+    file: "HowItWorksSection.tsx"
+
+    props:
+      overline:
+        type: "string"
+        default: "HOW IT WORKS"
+      title:
+        type: "string"
+        required: true
+      steps:
+        type: "Step[]"
+        required: true
+        length: 3
+
+    sub_components:
+      StepCard:
+        props:
+          number: "number"
+          icon: "string"
+          title: "string"
+          description: "string"
+
+    styling:
+      background: "primary-50"
+      padding: "py-20"
+      layout: "grid-cols-1 lg:grid-cols-3 gap-8"
+      connecting_line: "dashed, neutral-300"
+
+  # ===== APP PREVIEW SECTION =====
+  AppPreviewSection:
+    type: "server"
+    description: "Two-column layout with benefits list and app screenshot"
+    file: "AppPreviewSection.tsx"
+
+    props:
+      overline:
+        type: "string"
+        default: "APP PREVIEW"
+      title:
+        type: "string"
+        required: true
+      benefits:
+        type: "string[]"
+        required: true
+        min_length: 4
+      previewImage:
+        type: "object"
+        properties:
+          src: { type: "string", required: true }
+          alt: { type: "string", required: true }
+
+    styling:
+      background: "white"
+      padding: "py-20"
+      layout: "grid lg:grid-cols-2 gap-12"
+      image_frame: "shadow-xl, rounded-xl, optional 3D tilt"
+
+  # ===== TESTIMONIALS SECTION =====
+  TestimonialsSection:
+    type: "server"
+    description: "Grid or carousel of testimonial cards"
+    file: "TestimonialsSection.tsx"
+
+    props:
+      overline:
+        type: "string"
+        optional: true
+      title:
+        type: "string"
+        optional: true
+      testimonials:
+        type: "Testimonial[]"
+        required: true
+        min_length: 3
+
+    sub_components:
+      TestimonialCard:
+        props:
+          quote: "string"
+          author:
+            name: "string"
+            role: "string (optional)"
+            company: "string (optional)"
+            avatarUrl: "string (optional)"
+
+    styling:
+      background: "neutral-50"
+      padding: "py-20"
+      grid: "grid-cols-1 md:grid-cols-3 gap-6"
+      card: "bg-white, shadow-card, rounded-xl, p-6"
+
+  # ===== CTA SECTION =====
+  CTASection:
+    type: "server"
+    description: "Full-width gradient banner with final call-to-action"
+    file: "CTASection.tsx"
+
+    props:
+      title:
+        type: "string"
+        required: true
+        example: "Ready to Get Organized?"
+      subtitle:
+        type: "string"
+        optional: true
+      buttonText:
+        type: "string"
+        required: true
+      buttonHref:
+        type: "string"
+        required: true
+      trustText:
+        type: "string"
+        optional: true
+
+    styling:
+      background: "gradient from primary-500 to primary-600"
+      padding: "py-20"
+      text_color: "white"
+      button: "bg-white, text-primary-600"
+      alignment: "text-center"
+
+  # ===== LANDING FOOTER =====
+  LandingFooter:
+    type: "server"
+    description: "Multi-column footer with links, social icons, and copyright"
+    file: "LandingFooter.tsx"
+
+    props:
+      logo:
+        type: "object"
+      tagline:
+        type: "string"
+      linkGroups:
+        type: "FooterLinkGroup[]"
+        required: true
+      socialLinks:
+        type: "SocialLink[]"
+        optional: true
+      copyrightText:
+        type: "string"
+        required: true
+
+    styling:
+      background: "neutral-900"
+      padding: "py-16"
+      text_color: "neutral-400 (links), white (headings)"
+      layout: "grid-cols-1 md:grid-cols-4 gap-8"
+      border_top: "1px solid neutral-700 (copyright section)"
+
+---
+
+# Shared Dependencies
+
+shared_dependencies:
+  icons: "lucide-react"
+  animations: "framer-motion"
+  ui_components:
+    - "@/components/ui/button"
+    - "@/components/ui/card"
+  utilities:
+    - "clsx"
+    - "tailwind-merge"
+    - "class-variance-authority"
+
+---
+
+# Animation Specifications
+
+animations:
+  scroll_reveal:
+    library: "framer-motion"
+    trigger: "whileInView"
+    viewport: { once: true, margin: "-100px" }
+    initial: { opacity: 0, y: 20 }
+    animate: { opacity: 1, y: 0 }
+    transition: { duration: 0.5, ease: "easeOut" }
+
+  stagger_children:
+    staggerChildren: 0.1
+    delayChildren: 0.2
+
+  hover_lift:
+    whileHover: { y: -4 }
+    transition: { duration: 0.2 }
+
+  fade_in_right:
+    initial: { opacity: 0, x: 20 }
+    animate: { opacity: 1, x: 0 }
