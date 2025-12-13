@@ -1,0 +1,21 @@
+'use client';
+
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { queryClient } from '@/lib/query-client';
+import { ReactNode } from 'react';
+
+/**
+ * TanStack Query Provider
+ * Wraps the app to provide React Query functionality
+ * Includes DevTools for development
+ */
+export function QueryProvider({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+

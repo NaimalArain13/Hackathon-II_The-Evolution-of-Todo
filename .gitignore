@@ -89,3 +89,6 @@ next-env.d.ts
 *.tgz
 .yarn/
 .pnp.*
+
+
+CREDENTIALS.md

@@ -3,6 +3,101 @@
 ## Overview
 This is the frontend for the Todo App built with Next.js 16+ using the App Router. It provides a responsive web interface for task management with Better Auth authentication.
 
+---
+
+## ⚠️ IMPORTANT: Design-First Implementation
+
+**BEFORE implementing any UI, you MUST review these design reference documents:**
+
+### Required Design References
+1. **`frontend/FIGMA_DESIGN_SPEC.md`** - Complete design system specification
+   - Design tokens (colors, typography, spacing)
+   - Component specifications
+   - Page layouts and wireframes
+   - Animation guidelines
+
+2. **`frontend/ROADMAP.md`** - Implementation roadmap and phases
+   - Tech stack and dependencies
+   - Phase-by-phase implementation plan
+   - Component breakdown
+
+3. **`specs/004-frontend-setup/COLOR_PALETTE.md`** - Official color palette
+   - Primary: Cyan (#3ABEFF)
+   - Danger: Red/Coral (#FF6767)
+   - Neutral: Custom grays (#F8F8FB, #F8F8F8, #F5F8FF, #A1A3AB, #000000)
+
+---
+
+## Frontend Implementation Phases
+
+The frontend UI and implementation is broken into **3 main parts**:
+
+### Phase 1: Landing Page
+- Hero section with CTA
+- Features section
+- How it works section
+- Footer
+- Responsive design (mobile-first)
+- Framer Motion animations
+
+### Phase 2: Auth Flow (Login/Signup + API Integration)
+- Login page with form validation
+- Registration page with password strength indicator
+- Better Auth integration
+- JWT token management
+- Protected route handling
+- Error states and loading states
+
+### Phase 3: Dashboard (Tasks + Profile)
+- **Task Management UI**:
+  - Task list view
+  - Task card components
+  - Create/Edit/Delete task modals
+  - Task filtering and sorting
+  - Status and priority badges
+- **API Integration**:
+  - TanStack Query for data fetching
+  - Optimistic updates
+  - Error handling
+- **User Profile Page**:
+  - View profile information
+  - Update profile settings
+  - Password change functionality
+
+---
+
+## Required Skills
+
+**Always use defined skills when applicable.** All skills are located under `.claude/skills/`
+
+### Frontend Skills
+| Skill | Path | Use Case |
+|-------|------|----------|
+| `nextjs` | `.claude/skills/nextjs/` | Next.js 16 patterns, App Router, proxy.ts |
+| `shadcn` | `.claude/skills/shadcn/` | UI components, theming |
+| `framer-motion` | `.claude/skills/framer-motion/` | Animations, page transitions |
+| `better-auth-ts` | `.claude/skills/better-auth-ts/` | Authentication implementation |
+| `drizzle-orm` | `.claude/skills/drizzle-orm/` | Database queries (if needed) |
+| `neon-postgres` | `.claude/skills/neon-postgres/` | Neon database connection |
+
+### Frontend-Specific Skills
+| Skill | Path | Use Case |
+|-------|------|----------|
+| `frontend-api-client` | `.claude/skills/frontend-api-client/` | API client patterns |
+| `frontend-auth` | `.claude/skills/frontend-auth/` | Auth flow implementation |
+| `frontend-component` | `.claude/skills/frontend-component/` | Component patterns |
+| `frontend-types` | `.claude/skills/frontend-types/` | TypeScript types |
+
+### Figma/Design Skills
+| Skill | Path | Use Case |
+|-------|------|----------|
+| `figma-modern-ui-design` | `.claude/skills/figma-modern-ui-design/` | Modern UI patterns |
+| `figma-animations-prototypes` | `.claude/skills/figma-animations-prototypes/` | Animation specs |
+| `figma-dashboard-components` | `.claude/skills/figma-dashboard-components/` | Dashboard UI |
+| `figma-backend-integration-design` | `.claude/skills/figma-backend-integration-design/` | API-driven UI |
+
+---
+
 ## Technology Stack
 
 - **Framework**: Next.js 16+ (App Router)
