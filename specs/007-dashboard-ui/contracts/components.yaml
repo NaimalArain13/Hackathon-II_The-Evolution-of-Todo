@@ -1,0 +1,486 @@
+# UI Component Contracts
+
+# This file defines the contracts for all UI components in the dashboard.
+# Each component specifies its props, behavior, accessibility requirements,
+# and integration with other components.
+
+version: "1.0"
+feature: "007-dashboard-ui"
+date: "2025-12-14"
+
+components:
+  # Layout Components
+  - name: DashboardLayout
+    path: src/app/(dashboard)/layout.tsx
+    type: layout
+    description: Root layout for all dashboard pages with sidebar and main content area
+    props:
+      children:
+        type: ReactNode
+        required: true
+        description: Page content to render in main area
+    behavior:
+      - Renders persistent sidebar on desktop (≥768px)
+      - Converts sidebar to drawer on mobile (<768px)
+      - Manages sidebar collapse/expand state
+      - Protects routes with authentication middleware
+    accessibility:
+      - aria-label: "Dashboard layout"
+      - Keyboard navigation: Tab through sidebar items
+      - Skip to main content link
+    dependencies:
+      - Sidebar
+      - AuthProvider (context)
+
+  - name: Sidebar
+    path: src/components/dashboard/Sidebar.tsx
+    type: navigation
+    description: Collapsible sidebar with navigation links and user profile
+    props:
+      collapsed:
+        type: boolean
+        required: true
+        description: Whether sidebar is collapsed (icons only)
+      onToggleCollapse:
+        type: () => void
+        required: true
+        description: Callback to toggle collapse state
+      activeSection:
+        type: "'dashboard' | 'tasks' | 'profile'"
+        required: true
+        description: Currently active section for highlighting
+      user:
+        type: User
+        required: true
+        description: User data for profile display
+    behavior:
+      - Shows icons + labels when expanded
+      - Shows icons only when collapsed
+      - Highlights active navigation item
+      - Displays user avatar/initials and name
+      - Includes logout button
+      - Smooth collapse/expand animation (300ms)
+    accessibility:
+      - role: navigation
+      - aria-label: "Main navigation"
+      - aria-expanded: collapsed state
+      - aria-current: "page" for active item
+    animations:
+      - Sidebar width transition: 250px → 70px
+      - Label fade in/out
+      - Icon-only centered layout when collapsed
+    dependencies:
+      - Button (shadcn/ui)
+      - Avatar (shadcn/ui)
+
+  # Task Display Components
+  - name: TaskList
+    path: src/components/dashboard/TaskList.tsx
+    type: container
+    description: Container for displaying filtered and sorted task cards
+    props:
+      tasks:
+        type: Task[]
+        required: true
+        description: Array of tasks to display
+      isLoading:
+        type: boolean
+        required: true
+        description: Loading state for skeleton display
+      onEdit:
+        type: (task: Task) => void
+        required: true
+        description: Callback when edit button clicked
+      onDelete:
+        type: (taskId: number) => void
+        required: true
+        description: Callback when delete button clicked
+      onToggleComplete:
+        type: (taskId: number) => void
+        required: true
+        description: Callback when completion checkbox toggled
+    behavior:
+      - Renders TaskCard for each task
+      - Shows skeleton loaders when loading
+      - Shows EmptyState when no tasks
+      - Applies fade-in animation on mount
+      - Responsive grid layout (1/2/3 columns)
+      - Virtual scrolling for >500 tasks
+    accessibility:
+      - role: list
+      - aria-label: "Task list"
+      - aria-busy: when loading
+    animations:
+      - Stagger children (50ms delay each)
+      - Fade in opacity: 0 → 1
+      - Slide up: translateY(20px) → 0
+    dependencies:
+      - TaskCard
+      - EmptyState
+      - Skeleton (shadcn/ui)
+      - FixedSizeList (react-window, conditional)
+
+  - name: TaskCard
+    path: src/components/dashboard/TaskCard.tsx
+    type: display
+    description: Card displaying single task with actions
+    props:
+      task:
+        type: Task
+        required: true
+        description: Task data to display
+      onEdit:
+        type: (task: Task) => void
+        required: true
+        description: Callback when edit button clicked
+      onDelete:
+        type: (taskId: number) => void
+        required: true
+        description: Callback when delete button clicked
+      onToggleComplete:
+        type: (taskId: number) => void
+        required: true
+        description: Callback when completion checkbox toggled
+    behavior:
+      - Displays title (truncated if >100 chars)
+      - Shows description preview (first 150 chars)
+      - Renders priority badge (color-coded)
+      - Renders category badge
+      - Completion checkbox
+      - Edit and delete action buttons
+      - Strikethrough title if completed
+      - Muted styling if completed
+      - Hover shows full title in tooltip
+    accessibility:
+      - role: article
+      - aria-label: Task title
+      - aria-checked: for checkbox
+      - aria-describedby: description
+    animations:
+      - Hover: scale(1.02) + shadow elevation
+      - Completion toggle: strikethrough animation
+      - Delete: fade out + slide left
+      - Edit click: subtle pulse
+    dependencies:
+      - Card (shadcn/ui)
+      - Checkbox (shadcn/ui)
+      - Badge (shadcn/ui)
+      - Button (shadcn/ui)
+      - Tooltip (shadcn/ui)
+
+  # Filter & Search Components
+  - name: TaskFilters
+    path: src/components/dashboard/TaskFilters.tsx
+    type: control
+    description: Filter controls for status, priority, and category
+    props:
+      filters:
+        type: TaskFilters
+        required: true
+        description: Current filter state
+      onFilterChange:
+        type: (filters: Partial<TaskFilters>) => void
+        required: true
+        description: Callback when any filter changes
+      onClearFilters:
+        type: () => void
+        required: true
+        description: Callback to reset all filters
+    behavior:
+      - Status dropdown (All, Pending, Completed)
+      - Priority dropdown (All, High, Medium, Low, None)
+      - Category dropdown (All, Work, Personal, etc.)
+      - Active filter badges
+      - Clear all filters button
+      - Responsive layout (stack on mobile)
+    accessibility:
+      - role: toolbar
+      - aria-label: "Task filters"
+      - aria-controls: task-list-id
+    animations:
+      - Badge appear/disappear: scale + fade
+      - Dropdown open/close: slide down
+    dependencies:
+      - Select (shadcn/ui)
+      - Badge (shadcn/ui)
+      - Button (shadcn/ui)
+
+  - name: SearchBar
+    path: src/components/dashboard/SearchBar.tsx
+    type: input
+    description: Search input with debounce for task filtering
+    props:
+      value:
+        type: string
+        required: true
+        description: Current search query
+      onChange:
+        type: (value: string) => void
+        required: true
+        description: Callback when search value changes (debounced)
+      placeholder:
+        type: string
+        required: false
+        default: "Search tasks..."
+        description: Placeholder text
+    behavior:
+      - Debounces input by 300ms
+      - Shows loading indicator during search
+      - Clear button when value exists
+      - Responsive width (full on mobile)
+    accessibility:
+      - role: searchbox
+      - aria-label: "Search tasks"
+      - aria-controls: task-list-id
+    animations:
+      - Focus: border color transition
+      - Clear button: fade in/out
+    dependencies:
+      - Input (shadcn/ui)
+      - Button (shadcn/ui)
+      - SearchIcon (lucide-react)
+
+  - name: TaskSort
+    path: src/components/dashboard/TaskSort.tsx
+    type: control
+    description: Sort controls for ordering task list
+    props:
+      sort:
+        type: TaskSort
+        required: true
+        description: Current sort configuration
+      onSortChange:
+        type: (sort: TaskSort) => void
+        required: true
+        description: Callback when sort changes
+    behavior:
+      - Field dropdown (Priority, Created, Updated, Title, Status)
+      - Order toggle button (Asc/Desc)
+      - Shows active sort indicator
+      - Responsive layout
+    accessibility:
+      - role: toolbar
+      - aria-label: "Sort tasks"
+      - aria-controls: task-list-id
+    animations:
+      - Order toggle: rotate icon 180deg
+      - Dropdown: slide down
+    dependencies:
+      - Select (shadcn/ui)
+      - Button (shadcn/ui)
+      - ArrowUpDown (lucide-react)
+
+  # Modal Components
+  - name: CreateTaskModal
+    path: src/components/modals/CreateTaskModal.tsx
+    type: modal
+    description: Modal for creating new tasks
+    props:
+      open:
+        type: boolean
+        required: true
+        description: Whether modal is open
+      onClose:
+        type: () => void
+        required: true
+        description: Callback to close modal
+      onSuccess:
+        type: (task: Task) => void
+        required: true
+        description: Callback when task created successfully
+    behavior:
+      - Form with title, description, priority, category
+      - Real-time validation with error messages
+      - Submit button disabled during API call
+      - Loading spinner on submit button
+      - Auto-focus title field on open
+      - Close on Escape key
+      - Close on overlay click
+      - Preserve input on error
+      - Clear form on success
+    accessibility:
+      - role: dialog
+      - aria-labelledby: modal-title
+      - aria-describedby: modal-description
+      - aria-modal: true
+      - Focus trap within modal
+      - Return focus to trigger on close
+    animations:
+      - Backdrop: fade in/out
+      - Modal: scale(0.95) + fade → scale(1) + fade
+      - Duration: 200ms
+    dependencies:
+      - Dialog (shadcn/ui)
+      - Form (react-hook-form + shadcn/ui)
+      - Input (shadcn/ui)
+      - Select (shadcn/ui)
+      - Button (shadcn/ui)
+      - createTaskSchema (zod)
+
+  - name: EditTaskModal
+    path: src/components/modals/EditTaskModal.tsx
+    type: modal
+    description: Modal for editing existing tasks
+    props:
+      open:
+        type: boolean
+        required: true
+        description: Whether modal is open
+      task:
+        type: Task | null
+        required: true
+        description: Task to edit (null when closed)
+      onClose:
+        type: () => void
+        required: true
+        description: Callback to close modal
+      onSuccess:
+        type: (task: Task) => void
+        required: true
+        description: Callback when task updated successfully
+    behavior:
+      - Pre-fills form with current task data
+      - Includes completed checkbox
+      - Same validation as CreateTaskModal
+      - Same behavior patterns
+    accessibility:
+      - Same as CreateTaskModal
+    animations:
+      - Same as CreateTaskModal
+    dependencies:
+      - Dialog (shadcn/ui)
+      - Form (react-hook-form + shadcn/ui)
+      - Input (shadcn/ui)
+      - Select (shadcn/ui)
+      - Checkbox (shadcn/ui)
+      - Button (shadcn/ui)
+      - editTaskSchema (zod)
+
+  - name: DeleteConfirmDialog
+    path: src/components/modals/DeleteConfirmDialog.tsx
+    type: dialog
+    description: Confirmation dialog for deleting tasks
+    props:
+      open:
+        type: boolean
+        required: true
+        description: Whether dialog is open
+      taskId:
+        type: number | null
+        required: true
+        description: ID of task to delete
+      taskTitle:
+        type: string | null
+        required: true
+        description: Title of task to show in confirmation
+      onClose:
+        type: () => void
+        required: true
+        description: Callback to close dialog
+      onConfirm:
+        type: () => void
+        required: true
+        description: Callback when deletion confirmed
+    behavior:
+      - Shows task title in confirmation message
+      - Cancel and Delete buttons
+      - Delete button has destructive styling (red)
+      - Loading state during deletion
+      - Auto-closes on successful delete
+      - Close on Escape key
+    accessibility:
+      - role: alertdialog
+      - aria-labelledby: dialog-title
+      - aria-describedby: dialog-description
+      - Focus on Delete button by default
+    animations:
+      - Same as modals
+      - Delete button: subtle shake on error
+    dependencies:
+      - AlertDialog (shadcn/ui)
+      - Button (shadcn/ui)
+
+  # Empty State & Loading
+  - name: EmptyState
+    path: src/components/dashboard/EmptyState.tsx
+    type: display
+    description: Friendly message when no tasks match filters
+    props:
+      variant:
+        type: "'no-tasks' | 'no-results'"
+        required: true
+        description: Which empty state to show
+      onCreateTask:
+        type: () => void
+        required: false
+        description: Callback for create task button (no-tasks variant)
+      onClearFilters:
+        type: () => void
+        required: false
+        description: Callback for clear filters button (no-results variant)
+    behavior:
+      - Shows friendly illustration (optional)
+      - Displays contextual message
+      - Shows CTA button based on variant
+      - Responsive layout
+    accessibility:
+      - role: status
+      - aria-label: Empty state message
+    animations:
+      - Fade in with slight scale
+    dependencies:
+      - Button (shadcn/ui)
+
+  - name: DashboardHeader
+    path: src/components/dashboard/DashboardHeader.tsx
+    type: header
+    description: Page header with title and primary actions
+    props:
+      title:
+        type: string
+        required: true
+        description: Page title to display
+      action:
+        type: ReactNode
+        required: false
+        description: Optional action button(s)
+    behavior:
+      - Displays page title (h1)
+      - Renders action button(s) on right
+      - Responsive layout (stack on mobile)
+    accessibility:
+      - Semantic heading hierarchy
+      - Landmark: header role
+    dependencies:
+      - None (pure layout)
+
+# Shared UI Components (from shadcn/ui)
+shared_components:
+  - Button
+  - Input
+  - Select
+  - Checkbox
+  - Card
+  - Badge
+  - Dialog
+  - AlertDialog
+  - Skeleton
+  - Tooltip
+  - Avatar
+  - Form
+
+# Component Hierarchy
+hierarchy:
+  DashboardLayout:
+    - Sidebar
+    - DashboardHeader
+    - TaskList:
+        - TaskCard
+        - EmptyState
+        - Skeleton (loading)
+    - TaskFilters
+    - SearchBar
+    - TaskSort
+    - CreateTaskModal
+    - EditTaskModal
+    - DeleteConfirmDialog

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -15,20 +15,30 @@ interface AuthLayoutProps {
  */
 export default function AuthLayout({ children }: AuthLayoutProps) {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user, token } = useAuthStore();
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Redirect authenticated users away from auth pages
-    if (isAuthenticated) {
-      router.replace('/dashboard');
-    }
-  }, [isAuthenticated, router]);
+    // Check if user has valid authentication (user + token + isAuthenticated)
+    const hasValidAuth = isAuthenticated && user && token;
 
-  // Don't render auth pages for authenticated users
-  if (isAuthenticated) {
+    if (hasValidAuth) {
+      // Redirect authenticated users away from auth pages
+      router.replace('/dashboard');
+    } else {
+      // Not authenticated - show auth pages
+      setIsChecking(false);
+    }
+  }, [isAuthenticated, user, token, router]);
+
+  // Show loading while checking auth
+  if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-        <div className="animate-pulse text-neutral-500">Redirecting...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+          <p className="text-neutral-500">Loading...</p>
+        </div>
       </div>
     );
   }
