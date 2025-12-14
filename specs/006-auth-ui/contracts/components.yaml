@@ -1,0 +1,211 @@
+# Component Contracts: Authentication UI
+# Defines the React components and their interfaces
+
+components:
+  pages:
+    LoginPage:
+      path: /signin
+      route: app/(auth)/signin/page.tsx
+      type: client-component
+      description: Login page with split-screen layout
+      layout: Split (50/50 desktop, full-width mobile)
+      components:
+        - LoginForm
+        - AuthBrandingPanel
+
+    SignupPage:
+      path: /signup
+      route: app/(auth)/signup/page.tsx
+      type: client-component
+      description: Registration page with split-screen layout
+      layout: Split (50/50 desktop, full-width mobile)
+      components:
+        - SignupForm
+        - AuthBrandingPanel
+
+  forms:
+    LoginForm:
+      path: components/auth/LoginForm.tsx
+      type: client-component
+      description: Login form with email/password fields
+      props: {}
+      state:
+        - isLoading: boolean
+        - errors: FieldErrors<LoginFormData>
+      fields:
+        email:
+          type: email
+          label: Email address
+          placeholder: Enter your email
+          validation: Required, valid email format
+          autocomplete: email
+        password:
+          type: password
+          label: Password
+          placeholder: Enter your password
+          validation: Required
+          autocomplete: current-password
+          features:
+            - visibility-toggle
+      actions:
+        submit:
+          label: Sign In
+          loading-label: Signing in...
+          disabled-when: form invalid OR isLoading
+      links:
+        - text: "Don't have an account?"
+          link-text: Sign up
+          href: /signup
+        - text: "Forgot password?"
+          link-text: Reset it
+          href: /forgot-password (placeholder)
+
+    SignupForm:
+      path: components/auth/SignupForm.tsx
+      type: client-component
+      description: Registration form with name/email/password fields
+      props: {}
+      state:
+        - isLoading: boolean
+        - errors: FieldErrors<RegisterFormData>
+      fields:
+        name:
+          type: text
+          label: Full Name
+          placeholder: Enter your full name
+          validation: Required, 1-100 characters
+          autocomplete: name
+        email:
+          type: email
+          label: Email address
+          placeholder: Enter your email
+          validation: Required, valid email format
+          autocomplete: email
+        password:
+          type: password
+          label: Password
+          placeholder: Create a password
+          validation: Required, 8+ chars, 1 number, 1 special char
+          autocomplete: new-password
+          features:
+            - visibility-toggle
+            - strength-indicator
+        confirmPassword:
+          type: password
+          label: Confirm Password
+          placeholder: Confirm your password
+          validation: Required, must match password
+          autocomplete: new-password
+          features:
+            - visibility-toggle
+      actions:
+        submit:
+          label: Create Account
+          loading-label: Creating account...
+          disabled-when: form invalid OR isLoading
+      links:
+        - text: "Already have an account?"
+          link-text: Sign in
+          href: /signin
+
+  ui:
+    AuthBrandingPanel:
+      path: components/auth/AuthBrandingPanel.tsx
+      type: server-component
+      description: Right-side branding panel with gradient background
+      props: {}
+      design:
+        background: Gradient (primary-500 to primary-700)
+        content:
+          - Logo
+          - Tagline/illustration
+          - Optional testimonial
+      responsive:
+        desktop: Visible, 50% width
+        tablet: Visible, reduced width
+        mobile: Hidden
+
+    PasswordInput:
+      path: components/auth/PasswordInput.tsx
+      type: client-component
+      description: Password input with visibility toggle
+      props:
+        - name: string
+        - label: string
+        - placeholder: string
+        - error: string | undefined
+        - showStrength: boolean (optional, default false)
+        - register: UseFormRegister
+      features:
+        - Eye/EyeOff icon toggle
+        - Password masked by default
+        - Optional strength indicator
+
+    PasswordStrengthIndicator:
+      path: components/auth/PasswordStrengthIndicator.tsx
+      type: client-component
+      description: Visual password strength feedback
+      props:
+        - password: string
+      display:
+        - Progress bar (3 segments)
+        - Text label (Weak/Medium/Strong)
+        - Color coding (red/yellow/green)
+      calculation:
+        weak: "< 8 chars OR missing number OR missing special"
+        medium: "8+ chars AND (has number XOR has special)"
+        strong: "8+ chars AND has number AND has special"
+
+    FormError:
+      path: components/auth/FormError.tsx
+      type: client-component
+      description: Inline error message for form fields
+      props:
+        - message: string | undefined
+      accessibility:
+        - aria-live: polite
+        - role: alert
+      styling:
+        - text-sm text-error-main
+        - Icon (exclamation circle)
+
+  hooks:
+    useAuth:
+      path: hooks/useAuth.ts
+      description: Authentication hook for login/register/logout
+      returns:
+        - login: (data: LoginFormData) => Promise<void>
+        - register: (data: RegisterFormData) => Promise<void>
+        - logout: () => void
+        - isLoading: boolean
+        - error: string | null
+
+  schemas:
+    loginSchema:
+      path: lib/validations/auth.ts
+      type: zod-schema
+      fields:
+        email: z.string().email()
+        password: z.string().min(1)
+
+    registerSchema:
+      path: lib/validations/auth.ts
+      type: zod-schema
+      fields:
+        name: z.string().min(1).max(100)
+        email: z.string().email()
+        password: z.string().min(8).regex(number).regex(special)
+        confirmPassword: z.string()
+      refinements:
+        - confirmPassword === password
+
+routes:
+  auth-group:
+    layout: app/(auth)/layout.tsx
+    description: Shared layout for auth pages (no header/footer)
+    features:
+      - Redirect authenticated users to dashboard
+      - Minimal layout (no navigation)
+    children:
+      - /signin
+      - /signup

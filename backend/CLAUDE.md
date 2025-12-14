@@ -439,6 +439,35 @@ JWT_ALGORITHM=HS256
 
 ## Testing
 
+### ⚠️ CRITICAL: Prerequisites Before Running Tests
+
+**ALWAYS follow these steps before running any tests:**
+
+```bash
+# 1. Navigate to backend directory
+cd backend
+
+# 2. Create virtual environment (if not already created)
+uv venv
+
+# 3. Activate virtual environment
+source .venv/bin/activate  # Linux/Mac
+# OR
+.venv/Scripts/activate     # Windows
+
+# 4. Install/sync all dependencies
+uv sync
+
+# 5. Now you can run tests
+pytest tests/
+```
+
+**Why this is important:**
+- Tests require all dependencies to be installed (pytest, FastAPI, SQLModel, etc.)
+- Virtual environment isolation prevents dependency conflicts
+- `uv sync` ensures all dependencies from `pyproject.toml` are installed
+- Without this, tests will fail with import errors
+
 ### Unit Tests with Pytest
 ```python
 # tests/test_tasks.py
@@ -468,6 +497,9 @@ def test_create_task(auth_headers):
 
 ### Running Tests
 ```bash
+# First, ensure virtual environment is activated and dependencies are synced!
+# See "Prerequisites Before Running Tests" above
+
 pytest tests/              # Run all tests
 pytest tests/test_tasks.py # Run specific test file
 pytest -v                  # Verbose output

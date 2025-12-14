@@ -378,3 +378,10 @@ This project is designed to work with Claude Code's `todo-task-manager` subagent
 **Remember**: This is a spec-driven project. Always start with the spec, implement with Claude Code, and iterate until correct. The monorepo structure allows seamless development across the full stack while maintaining clear separation of concerns.
 
 **Version**: 2.0.0 | **Last Updated**: 2025-12-08 | **Monorepo Structure**: Active
+
+## Active Technologies
+- Python 3.13+ (001-backend-setup)
+- Neon Serverless PostgreSQL (cloud-hosted, accessed via connection string) (001-backend-setup)
+
+## Recent Changes
+- 001-backend-setup: Added Python 3.13+

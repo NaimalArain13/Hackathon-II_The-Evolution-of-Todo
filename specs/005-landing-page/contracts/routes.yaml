@@ -1,0 +1,150 @@
+# Landing Page Routes Contract
+# Feature: 005-landing-page
+# Date: 2025-12-13
+
+# Note: The landing page is a static, client-side feature with no backend API requirements.
+# This contract defines the frontend routes and navigation structure.
+
+---
+
+# Frontend Routes
+
+routes:
+  landing_page:
+    path: "/"
+    method: GET
+    description: "Main landing page - default route"
+    component: "app/page.tsx"
+    layout: "app/layout.tsx"
+    server_component: true
+    metadata:
+      title: "TaskFlow - Organize Your Life, One Task at a Time"
+      description: "The simple, beautiful way to manage your tasks. Stay organized, boost productivity, and never miss a deadline."
+
+# Internal Navigation (Anchor Links)
+
+anchor_links:
+  - id: "hero"
+    label: "Home"
+    href: "#hero"
+
+  - id: "features"
+    label: "Features"
+    href: "#features"
+
+  - id: "how-it-works"
+    label: "How It Works"
+    href: "#how-it-works"
+
+  - id: "app-preview"
+    label: "Preview"
+    href: "#app-preview"
+
+  - id: "testimonials"
+    label: "Testimonials"
+    href: "#testimonials"
+
+  - id: "cta"
+    label: "Get Started"
+    href: "#cta"
+
+# External Navigation Links
+
+external_links:
+  authentication:
+    - label: "Sign In"
+      href: "/signin"
+      type: "ghost_button"
+
+    - label: "Sign Up"
+      href: "/signup"
+      type: "primary_button"
+
+  footer:
+    product:
+      - label: "Features"
+        href: "#features"
+      - label: "Pricing"
+        href: "/pricing"
+        placeholder: true
+      - label: "FAQ"
+        href: "/faq"
+        placeholder: true
+
+    company:
+      - label: "About"
+        href: "/about"
+        placeholder: true
+      - label: "Contact"
+        href: "/contact"
+        placeholder: true
+      - label: "Blog"
+        href: "/blog"
+        placeholder: true
+
+    legal:
+      - label: "Privacy Policy"
+        href: "/privacy"
+        placeholder: true
+      - label: "Terms of Service"
+        href: "/terms"
+        placeholder: true
+
+# CTA Actions
+
+cta_actions:
+  hero_primary:
+    text: "Get Started Free"
+    href: "/signup"
+    icon: "ArrowRight"
+
+  hero_secondary:
+    text: "See How It Works"
+    href: "#how-it-works"
+
+  final_cta:
+    text: "Create Free Account"
+    href: "/signup"
+
+# Responsive Breakpoints
+
+breakpoints:
+  mobile:
+    max_width: "767px"
+    navigation: "hamburger_menu"
+
+  tablet:
+    min_width: "768px"
+    max_width: "1023px"
+    navigation: "collapsed"
+
+  desktop:
+    min_width: "1024px"
+    navigation: "full"
+
+# Section IDs for Scroll Navigation
+
+sections:
+  - id: "hero"
+    component: "HeroSection"
+
+  - id: "features"
+    component: "FeaturesSection"
+
+  - id: "how-it-works"
+    component: "HowItWorksSection"
+
+  - id: "app-preview"
+    component: "AppPreviewSection"
+
+  - id: "testimonials"
+    component: "TestimonialsSection"
+
+  - id: "cta"
+    component: "CTASection"
+
+# No Backend API Required
+
+backend_api:
+  required: false
+  note: "Landing page is static. No API calls needed until user navigates to /signin or /signup."
