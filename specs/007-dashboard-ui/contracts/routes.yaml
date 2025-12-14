@@ -1,0 +1,333 @@
+# Frontend Route Contracts
+
+# This file defines all frontend routes and their protection/loading states
+
+version: "1.0"
+feature: "007-dashboard-ui"
+date: "2025-12-14"
+
+routes:
+  # Public Routes (Existing)
+  - path: /
+    name: Landing Page
+    file: src/app/page.tsx
+    type: public
+    description: Marketing landing page with features and CTA
+    requires_auth: false
+    loading_state: Server Component (instant)
+    seo:
+      title: "Todo App - Manage Your Tasks Efficiently"
+      description: "Modern task management application"
+
+  - path: /signin
+    name: Sign In
+    file: src/app/(auth)/signin/page.tsx
+    type: public
+    description: User login page
+    requires_auth: false
+    redirect_if_authenticated: /dashboard
+    loading_state: Skeleton form
+    seo:
+      title: "Sign In - Todo App"
+      robots: noindex
+
+  - path: /signup
+    name: Sign Up
+    file: src/app/(auth)/signup/page.tsx
+    type: public
+    description: User registration page
+    requires_auth: false
+    redirect_if_authenticated: /dashboard
+    loading_state: Skeleton form
+    seo:
+      title: "Sign Up - Todo App"
+      robots: noindex
+
+  # Protected Routes (Dashboard - NEW)
+  - path: /dashboard
+    name: Dashboard Home
+    file: src/app/(dashboard)/page.tsx
+    type: protected
+    description: Main dashboard page with task overview
+    requires_auth: true
+    redirect_if_unauthenticated: /signin
+    layout: DashboardLayout (with sidebar)
+    loading_state: Skeleton cards grid
+    data_requirements:
+      - Tasks list (filtered, sorted)
+      - User profile (from context)
+    seo:
+      title: "Dashboard - Todo App"
+      robots: noindex
+
+  - path: /dashboard/tasks
+    name: Tasks View
+    file: src/app/(dashboard)/tasks/page.tsx
+    type: protected
+    description: Dedicated tasks page with full filtering/sorting
+    requires_auth: true
+    redirect_if_unauthenticated: /signin
+    layout: DashboardLayout (with sidebar)
+    loading_state: Skeleton cards grid
+    data_requirements:
+      - Tasks list (filtered, sorted)
+    query_params:
+      - status: "all" | "pending" | "completed"
+      - priority: "all" | "high" | "medium" | "low" | "none"
+      - category: "all" | "work" | "personal" | "shopping" | "health" | "other"
+      - search: string
+      - sort_by: "priority" | "created_at" | "updated_at" | "title" | "status"
+      - order: "asc" | "desc"
+    seo:
+      title: "My Tasks - Todo App"
+      robots: noindex
+
+  - path: /dashboard/profile
+    name: User Profile
+    file: src/app/(dashboard)/profile/page.tsx
+    type: protected
+    description: User profile view and edit page
+    requires_auth: true
+    redirect_if_unauthenticated: /signin
+    layout: DashboardLayout (with sidebar)
+    loading_state: Skeleton profile card
+    data_requirements:
+      - User profile
+    seo:
+      title: "Profile - Todo App"
+      robots: noindex
+
+# Route Groups
+route_groups:
+  - name: (auth)
+    path: src/app/(auth)
+    description: Authentication pages (signin, signup)
+    layout: src/app/(auth)/layout.tsx
+    shared_layout_features:
+      - Centered card layout
+      - Branding panel on left
+      - Form on right
+      - Responsive stacking
+    applies_to:
+      - /signin
+      - /signup
+
+  - name: (dashboard)
+    path: src/app/(dashboard)
+    description: Protected dashboard pages
+    layout: src/app/(dashboard)/layout.tsx
+    shared_layout_features:
+      - Persistent sidebar
+      - Main content area
+      - Authentication check
+      - User context provider
+    applies_to:
+      - /dashboard
+      - /dashboard/tasks
+      - /dashboard/profile
+
+# Middleware
+middleware:
+  - name: auth-middleware
+    file: src/middleware.ts
+    description: Protects dashboard routes and redirects unauthenticated users
+    applies_to:
+      - /dashboard/*
+    logic: |
+      1. Check for access_token in cookies or localStorage
+      2. If missing → redirect to /signin
+      3. If present → verify JWT (optional, or trust expiry)
+      4. If valid → allow access
+      5. If expired → redirect to /signin with ?redirect param
+
+# Navigation Flow
+navigation_flows:
+  - name: First Visit (Unauthenticated)
+    steps:
+      - User visits /
+      - Sees landing page
+      - Clicks "Get Started"
+      - Redirected to /signup
+      - Completes registration
+      - Auto-logged in with JWT
+      - Redirected to /dashboard
+
+  - name: Returning User (Authenticated)
+    steps:
+      - User visits /
+      - Middleware detects JWT
+      - Auto-redirected to /dashboard (optional)
+      - Or stays on landing with "Go to Dashboard" link
+
+  - name: Direct Dashboard Access (Unauthenticated)
+    steps:
+      - User visits /dashboard
+      - Middleware detects no JWT
+      - Redirected to /signin?redirect=/dashboard
+      - User logs in
+      - Redirected back to /dashboard
+
+  - name: Logout Flow
+    steps:
+      - User clicks Logout in sidebar
+      - POST /api/auth/logout (optional backend call)
+      - Remove JWT from localStorage
+      - Clear React Query cache
+      - Redirect to /signin
+      - Show "Logged out successfully" toast
+
+# API Integration Points
+api_integration:
+  - route: /dashboard
+    api_calls:
+      - GET /api/{user_id}/tasks
+        query_params:
+          - status (optional)
+          - priority (optional)
+          - category (optional)
+          - search (optional)
+          - sort_by (optional)
+          - order (optional)
+        on_success: Display tasks in grid
+        on_error: Show error toast, retry button
+
+  - route: /dashboard/tasks
+    api_calls:
+      - GET /api/{user_id}/tasks
+        query_params: Same as /dashboard
+        on_success: Display tasks in list
+        on_error: Show error toast, retry button
+      - POST /api/{user_id}/tasks
+        trigger: Create button in modal
+        on_success: Add to cache, show toast, close modal
+        on_error: Show error in modal, preserve input
+      - PUT /api/{user_id}/tasks/{task_id}
+        trigger: Edit button in modal
+        on_success: Update cache, show toast, close modal
+        on_error: Show error in modal, preserve input
+      - DELETE /api/{user_id}/tasks/{task_id}
+        trigger: Delete confirm in dialog
+        on_success: Remove from cache, show toast, close dialog
+        on_error: Show error toast, keep dialog open
+      - PATCH /api/{user_id}/tasks/{task_id}/complete
+        trigger: Checkbox toggle
+        on_success: Optimistic update, sync with server
+        on_error: Revert optimistic update, show toast
+
+  - route: /dashboard/profile
+    api_calls:
+      - GET /api/auth/profile
+        on_success: Display profile data
+        on_error: Show error message
+      - PUT /api/auth/profile
+        trigger: Save button in edit form
+        on_success: Update cache, show toast, exit edit mode
+        on_error: Show error in form, preserve input
+
+# Loading States
+loading_states:
+  - page: /dashboard
+    state: loading
+    display:
+      - Skeleton sidebar
+      - Skeleton header
+      - Grid of 6 skeleton cards
+    duration: Until tasks query resolves
+
+  - page: /dashboard
+    state: error
+    display:
+      - Error boundary with message
+      - Retry button
+      - Contact support link
+
+  - page: /dashboard
+    state: empty (no tasks)
+    display:
+      - Empty state illustration
+      - "Create your first task" message
+      - Primary CTA button
+
+  - page: /dashboard
+    state: empty (no results)
+    display:
+      - Empty state illustration
+      - "No tasks match your filters" message
+      - "Clear filters" button
+
+# Error Handling
+error_handling:
+  - scenario: Network error
+    display: Toast notification "Network error. Please check your connection."
+    action: Retry button, auto-retry after 5s
+
+  - scenario: 401 Unauthorized
+    display: N/A (automatic)
+    action: Clear JWT, redirect to /signin
+
+  - scenario: 403 Forbidden
+    display: Error page "You don't have permission to access this resource"
+    action: Go to dashboard button
+
+  - scenario: 404 Not Found (task)
+    display: Toast notification "Task not found"
+    action: Refresh task list
+
+  - scenario: 500 Server Error
+    display: Toast notification "Something went wrong. Please try again."
+    action: Retry button
+
+  - scenario: Validation error (422)
+    display: Inline form errors
+    action: Fix errors and resubmit
+
+# Performance Optimizations
+performance:
+  - route: /dashboard
+    optimizations:
+      - Prefetch tasks on hover over dashboard link
+      - Cache tasks for 1 minute (stale-while-revalidate)
+      - Virtual scrolling for >500 tasks
+      - Lazy load modals (dynamic imports)
+      - Debounce search input (300ms)
+
+  - route: /dashboard/tasks
+    optimizations:
+      - Same as /dashboard
+      - Memoize filter/sort computations
+      - Use React.memo for TaskCard components
+      - Optimize re-renders with React Query
+
+# SEO Metadata
+seo_metadata:
+  public_pages:
+    - path: /
+      title: "Todo App - Manage Your Tasks Efficiently"
+      description: "Modern, powerful task management application with smart features"
+      keywords: "todo, tasks, productivity, task manager"
+      og_image: /og-image.png
+
+  protected_pages:
+    - All dashboard routes
+      robots: "noindex, nofollow"
+      reason: "User-specific content, no SEO value"
+
+# Accessibility
+accessibility:
+  - All routes:
+      - Semantic HTML structure
+      - Skip to main content link
+      - Proper heading hierarchy (h1 → h2 → h3)
+      - ARIA landmarks (nav, main, aside)
+      - Focus management for modals
+      - Keyboard navigation support
+
+# Mobile Responsiveness
+mobile:
+  - All routes:
+      - Mobile-first design
+      - Touch-friendly targets (44px min)
+      - Responsive breakpoints (320px, 768px, 1024px)
+      - Hamburger menu for sidebar on mobile
+      - Stack filters vertically on mobile
+      - Full-width modals on mobile
