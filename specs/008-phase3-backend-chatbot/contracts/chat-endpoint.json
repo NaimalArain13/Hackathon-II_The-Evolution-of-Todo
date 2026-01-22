@@ -1,0 +1,362 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Todo Chatbot API - Chat Endpoint",
+    "description": "AI-powered chat endpoint for natural language task management",
+    "version": "3.0.0",
+    "contact": {
+      "name": "Phase 3 Backend Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.example.com",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "chat",
+      "description": "Chatbot conversation endpoints"
+    }
+  ],
+  "paths": {
+    "/api/{user_id}/chat": {
+      "post": {
+        "tags": ["chat"],
+        "summary": "Send chat message and receive AI response",
+        "description": "Process user message through AI agent with MCP tools. Returns streaming SSE response with agent's reply and tool invocations.",
+        "operationId": "chatEndpoint",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "description": "Authenticated user ID (must match JWT token)",
+            "schema": {
+              "type": "string",
+              "example": "user_abc123"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              },
+              "examples": {
+                "newConversation": {
+                  "summary": "Start new conversation",
+                  "value": {
+                    "message": "Show me my pending tasks"
+                  }
+                },
+                "existingConversation": {
+                  "summary": "Continue existing conversation",
+                  "value": {
+                    "message": "Add a task to buy groceries",
+                    "conversation_id": 42
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response with SSE stream",
+            "headers": {
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["text/event-stream"]
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["no-cache"]
+                }
+              },
+              "Connection": {
+                "schema": {
+                  "type": "string",
+                  "enum": ["keep-alive"]
+                }
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events stream",
+                  "example": "data: {\"content\":\"I\"}\n\ndata: {\"content\":\"'ve\"}\n\ndata: {\"content\":\" found\"}\n\ndata: {\"content\":\" 3\"}\n\ndata: {\"content\":\" pending\"}\n\ndata: {\"content\":\" tasks\"}\n\ndata: {\"done\":true}\n\n"
+                },
+                "examples": {
+                  "streamingResponse": {
+                    "summary": "SSE streaming example",
+                    "value": "data: {\"content\":\"I've added 'Buy groceries' to your task list.\"}\n\ndata: {\"done\":true,\"conversation_id\":42}\n\n"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "emptyMessage": {
+                    "value": {
+                      "detail": "Message cannot be empty"
+                    }
+                  },
+                  "messageTooLong": {
+                    "value": {
+                      "detail": "Message exceeds 5000 character limit"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing JWT token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "Invalid or expired token"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - user_id doesn't match authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "Cannot access other user's conversations"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found - conversation_id doesn't exist or doesn't belong to user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "Conversation not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "databaseError": {
+                    "value": {
+                      "detail": "Database connection failed"
+                    }
+                  },
+                  "agentError": {
+                    "value": {
+                      "detail": "AI agent processing failed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service unavailable - MCP server unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "detail": "MCP server unavailable"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000,
+            "description": "User's message to the chatbot",
+            "example": "Show me my pending tasks"
+          },
+          "conversation_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Existing conversation ID to continue (omit for new conversation)",
+            "example": 42
+          }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "description": "Non-streaming response format (not used with SSE, included for reference)",
+        "properties": {
+          "conversation_id": {
+            "type": "integer",
+            "description": "Conversation ID (new or existing)",
+            "example": 42
+          },
+          "response": {
+            "type": "string",
+            "description": "AI assistant's complete response",
+            "example": "You have 3 pending tasks: 1) Buy groceries, 2) Call mom, 3) Finish report"
+          },
+          "tool_calls": {
+            "type": "array",
+            "description": "List of MCP tools invoked during response generation",
+            "items": {
+              "$ref": "#/components/schemas/ToolCall"
+            }
+          }
+        }
+      },
+      "ToolCall": {
+        "type": "object",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "description": "Name of the MCP tool called",
+            "enum": ["add_task", "list_tasks", "complete_task", "delete_task", "update_task"],
+            "example": "list_tasks"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters passed to the tool",
+            "example": {
+              "user_id": "user_abc123",
+              "status": "pending"
+            }
+          },
+          "result": {
+            "type": "object",
+            "description": "Result returned by the tool",
+            "example": [
+              {
+                "id": 1,
+                "title": "Buy groceries",
+                "completed": false
+              }
+            ]
+          }
+        }
+      },
+      "SSEEvent": {
+        "type": "object",
+        "description": "Server-Sent Event format",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SSEContentEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEDoneEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SSEErrorEvent"
+          }
+        ]
+      },
+      "SSEContentEvent": {
+        "type": "object",
+        "description": "Partial content chunk",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Partial response text",
+            "example": "I've added"
+          }
+        }
+      },
+      "SSEDoneEvent": {
+        "type": "object",
+        "description": "Stream completion signal",
+        "properties": {
+          "done": {
+            "type": "boolean",
+            "enum": [true],
+            "description": "Indicates stream is complete"
+          },
+          "conversation_id": {
+            "type": "integer",
+            "description": "Final conversation ID",
+            "example": 42
+          }
+        }
+      },
+      "SSEErrorEvent": {
+        "type": "object",
+        "description": "Error during streaming",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "example": "MCP server timeout"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string",
+            "description": "Error message",
+            "example": "Invalid request"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token from Better Auth authentication"
+      }
+    }
+  }
+}

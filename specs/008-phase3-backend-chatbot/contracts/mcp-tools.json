@@ -1,0 +1,467 @@
+{
+  "mcp_version": "1.0.0",
+  "server_name": "Todo MCP Server",
+  "server_description": "MCP server exposing task management operations for AI agents",
+  "transport": "streamable-http",
+  "endpoint": "/api/mcp",
+  "tools": [
+    {
+      "name": "add_task",
+      "description": "Add a new task to the user's todo list",
+      "input_schema": {
+        "type": "object",
+        "required": ["user_id", "title"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the authenticated user",
+            "example": "user_abc123"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Task title",
+            "example": "Buy groceries"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Optional task description",
+            "example": "Milk, eggs, bread from Whole Foods"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the created task",
+            "example": 5
+          },
+          "status": {
+            "type": "string",
+            "enum": ["created"],
+            "description": "Operation status",
+            "example": "created"
+          },
+          "title": {
+            "type": "string",
+            "description": "Task title (confirmation)",
+            "example": "Buy groceries"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "INVALID_INPUT",
+          "message": "Title is required and cannot be empty"
+        },
+        {
+          "code": "USER_NOT_FOUND",
+          "message": "User ID does not exist"
+        },
+        {
+          "code": "DATABASE_ERROR",
+          "message": "Failed to save task to database"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Simple task",
+          "input": {
+            "user_id": "user_abc123",
+            "title": "Buy groceries"
+          },
+          "output": {
+            "task_id": 5,
+            "status": "created",
+            "title": "Buy groceries"
+          }
+        },
+        {
+          "name": "Task with description",
+          "input": {
+            "user_id": "user_abc123",
+            "title": "Buy groceries",
+            "description": "Milk, eggs, bread"
+          },
+          "output": {
+            "task_id": 6,
+            "status": "created",
+            "title": "Buy groceries"
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_tasks",
+      "description": "Retrieve tasks from the user's todo list",
+      "input_schema": {
+        "type": "object",
+        "required": ["user_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the authenticated user",
+            "example": "user_abc123"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["all", "pending", "completed"],
+            "default": "all",
+            "description": "Filter tasks by completion status",
+            "example": "pending"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "description": "Task ID",
+              "example": 1
+            },
+            "title": {
+              "type": "string",
+              "description": "Task title",
+              "example": "Buy groceries"
+            },
+            "description": {
+              "type": "string",
+              "nullable": true,
+              "description": "Task description",
+              "example": "Milk, eggs, bread"
+            },
+            "completed": {
+              "type": "boolean",
+              "description": "Completion status",
+              "example": false
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When task was created",
+              "example": "2025-12-15T10:00:00Z"
+            }
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "USER_NOT_FOUND",
+          "message": "User ID does not exist"
+        },
+        {
+          "code": "INVALID_STATUS",
+          "message": "Status must be 'all', 'pending', or 'completed'"
+        },
+        {
+          "code": "DATABASE_ERROR",
+          "message": "Failed to retrieve tasks from database"
+        }
+      ],
+      "examples": [
+        {
+          "name": "All tasks",
+          "input": {
+            "user_id": "user_abc123",
+            "status": "all"
+          },
+          "output": [
+            {
+              "id": 1,
+              "title": "Buy groceries",
+              "description": null,
+              "completed": false,
+              "created_at": "2025-12-15T10:00:00Z"
+            },
+            {
+              "id": 2,
+              "title": "Call mom",
+              "description": "Wish happy birthday",
+              "completed": true,
+              "created_at": "2025-12-14T09:00:00Z"
+            }
+          ]
+        },
+        {
+          "name": "Pending tasks only",
+          "input": {
+            "user_id": "user_abc123",
+            "status": "pending"
+          },
+          "output": [
+            {
+              "id": 1,
+              "title": "Buy groceries",
+              "description": null,
+              "completed": false,
+              "created_at": "2025-12-15T10:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "complete_task",
+      "description": "Mark a task as complete",
+      "input_schema": {
+        "type": "object",
+        "required": ["user_id", "task_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the authenticated user",
+            "example": "user_abc123"
+          },
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the task to complete",
+            "example": 3
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the completed task",
+            "example": 3
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed"],
+            "description": "Operation status",
+            "example": "completed"
+          },
+          "title": {
+            "type": "string",
+            "description": "Task title (confirmation)",
+            "example": "Call mom"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "TASK_NOT_FOUND",
+          "message": "Task ID not found or doesn't belong to user"
+        },
+        {
+          "code": "ALREADY_COMPLETED",
+          "message": "Task is already completed"
+        },
+        {
+          "code": "DATABASE_ERROR",
+          "message": "Failed to update task status"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Complete task",
+          "input": {
+            "user_id": "user_abc123",
+            "task_id": 3
+          },
+          "output": {
+            "task_id": 3,
+            "status": "completed",
+            "title": "Call mom"
+          }
+        }
+      ]
+    },
+    {
+      "name": "delete_task",
+      "description": "Remove a task from the user's todo list",
+      "input_schema": {
+        "type": "object",
+        "required": ["user_id", "task_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the authenticated user",
+            "example": "user_abc123"
+          },
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the task to delete",
+            "example": 2
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the deleted task",
+            "example": 2
+          },
+          "status": {
+            "type": "string",
+            "enum": ["deleted"],
+            "description": "Operation status",
+            "example": "deleted"
+          },
+          "title": {
+            "type": "string",
+            "description": "Task title (confirmation)",
+            "example": "Old task"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "TASK_NOT_FOUND",
+          "message": "Task ID not found or doesn't belong to user"
+        },
+        {
+          "code": "DATABASE_ERROR",
+          "message": "Failed to delete task from database"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete task",
+          "input": {
+            "user_id": "user_abc123",
+            "task_id": 2
+          },
+          "output": {
+            "task_id": 2,
+            "status": "deleted",
+            "title": "Old task"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_task",
+      "description": "Modify a task's title or description",
+      "input_schema": {
+        "type": "object",
+        "required": ["user_id", "task_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID of the authenticated user",
+            "example": "user_abc123"
+          },
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the task to update",
+            "example": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "New task title (optional)",
+            "example": "Buy groceries and fruits"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "New task description (optional)",
+            "example": "Milk, eggs, bread, apples, oranges"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the updated task",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["updated"],
+            "description": "Operation status",
+            "example": "updated"
+          },
+          "title": {
+            "type": "string",
+            "description": "Updated task title",
+            "example": "Buy groceries and fruits"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "TASK_NOT_FOUND",
+          "message": "Task ID not found or doesn't belong to user"
+        },
+        {
+          "code": "NO_UPDATES_PROVIDED",
+          "message": "At least one of title or description must be provided"
+        },
+        {
+          "code": "INVALID_INPUT",
+          "message": "Title cannot be empty if provided"
+        },
+        {
+          "code": "DATABASE_ERROR",
+          "message": "Failed to update task in database"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Update title only",
+          "input": {
+            "user_id": "user_abc123",
+            "task_id": 1,
+            "title": "Buy groceries and fruits"
+          },
+          "output": {
+            "task_id": 1,
+            "status": "updated",
+            "title": "Buy groceries and fruits"
+          }
+        },
+        {
+          "name": "Update description only",
+          "input": {
+            "user_id": "user_abc123",
+            "task_id": 1,
+            "description": "Milk, eggs, bread, apples"
+          },
+          "output": {
+            "task_id": 1,
+            "status": "updated",
+            "title": "Buy groceries"
+          }
+        },
+        {
+          "name": "Update both title and description",
+          "input": {
+            "user_id": "user_abc123",
+            "task_id": 1,
+            "title": "Shopping list",
+            "description": "Everything we need"
+          },
+          "output": {
+            "task_id": 1,
+            "status": "updated",
+            "title": "Shopping list"
+          }
+        }
+      ]
+    }
+  ],
+  "authentication": {
+    "type": "none",
+    "description": "MCP server does not handle authentication. User ID is provided by authenticated chat endpoint and validated against task ownership."
+  },
+  "rate_limiting": {
+    "enabled": false,
+    "description": "Rate limiting handled at API gateway level, not at MCP server level"
+  }
+}

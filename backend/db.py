@@ -8,14 +8,18 @@ This module provides:
 """
 
 import os
+import time
 from typing import Generator
 
 from dotenv import load_dotenv
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, SQLModel, create_engine
 
 # Import models to register them with SQLModel metadata
 # This ensures tables are created on startup
-import models  # noqa: F401
+import models  # noqa: F401 - Phase 2 models (User, Task)
+from src.models import Conversation, Message  # noqa: F401 - Phase 3 models
 
 # Load environment variables from .env file
 load_dotenv()
@@ -80,6 +84,9 @@ def create_db_and_tables():
     If RESET_DB environment variable is set to "true", it will drop
     all existing tables before creating new ones (useful for development).
 
+    Note: Creates PostgreSQL enum types before creating tables that use them.
+    This is required because SQLModel doesn't automatically create enum types.
+
     Example:
         @app.on_event("startup")
         def on_startup():
@@ -91,6 +98,23 @@ def create_db_and_tables():
         print("WARNING: Dropping all existing tables (RESET_DB=true)")
         drop_all_tables()
 
+    # Create PostgreSQL enum types before creating tables
+    # SQLModel doesn't automatically create enum types, so we need to do it manually
+    with engine.begin() as conn:
+        # Create message_role enum type if it doesn't exist
+        # Using DO block to handle "already exists" case gracefully
+        conn.execute(
+            text(
+                """
+                DO $$ BEGIN
+                    CREATE TYPE message_role AS ENUM ('user', 'assistant');
+                EXCEPTION WHEN duplicate_object THEN null;
+                END $$;
+                """
+            )
+        )
+
+    # Create all tables
     SQLModel.metadata.create_all(engine)
 
 
