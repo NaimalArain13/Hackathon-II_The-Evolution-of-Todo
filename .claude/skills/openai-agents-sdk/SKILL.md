@@ -1,11 +1,11 @@
 ---
 name: openai-agents-sdk
-description: Build AI agents using OpenAI Agents SDK with MCP server integration. Supports Gemini via LiteLLM for non-OpenAI models. Covers agent creation, function tools, handoffs, MCP server connections, and conversation management.
+description: Build AI agents using OpenAI Agents SDK with MCP server integration. Supports Gemini directly via AsyncOpenAI or OpenRouter for non-OpenAI models. Covers agent creation, function tools, handoffs, MCP server connections, and conversation management.
 ---
 
 # OpenAI Agents SDK Skill
 
-Build AI agents using OpenAI Agents SDK with support for Gemini and other LLMs via LiteLLM.
+Build AI agents using OpenAI Agents SDK with support for Gemini and other LLMs via direct integration or OpenRouter.
 
 ## Architecture
 
@@ -14,7 +14,8 @@ Build AI agents using OpenAI Agents SDK with support for Gemini and other LLMs v
 │                        OpenAI Agents SDK                                │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                         Agent                                     │   │
-│  │  model: LitellmModel("gemini/gemini-2.0-flash")                  │   │
+│  │  model: OpenAIChatCompletionsModel                               │   │
+│  │    (via AsyncOpenAI with Gemini base_url)                        │   │
 │  │  tools: [function_tool, ...]                                      │   │
 │  │  mcp_servers: [MCPServerStreamableHttp(...)]                      │   │
 │  │  handoffs: [specialized_agent, ...]                               │   │
@@ -34,44 +35,107 @@ Build AI agents using OpenAI Agents SDK with support for Gemini and other LLMs v
 ### Installation
 
 ```bash
-# With LiteLLM support for non-OpenAI models
-pip install "openai-agents[litellm]"
+# Base installation
+pip install openai-agents
 
 # Or with uv
-uv add "openai-agents[litellm]"
+uv add openai-agents
 ```
 
 ### Environment Variables
 
 ```env
-# For Gemini
+# For Direct Gemini Integration (Recommended)
 GOOGLE_API_KEY=your-gemini-api-key
+
+# OR for OpenRouter (Alternative)
+OPENROUTER_API_KEY=your-openrouter-api-key
 
 # For OpenAI (optional, for tracing)
 OPENAI_API_KEY=your-openai-api-key
 ```
 
-## Using Gemini via LiteLLM
+## Using Gemini via Direct Integration (Recommended)
 
-The SDK supports Gemini and other non-OpenAI models through LiteLLM.
+The recommended approach is to use AsyncOpenAI with Gemini's OpenAI-compatible endpoint. This avoids quota issues with LiteLLM.
 
 ```python
 import os
-from agents import Agent, Runner
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner
+from agents.run import RunConfig
+from dotenv import load_dotenv
 
-# Create agent with Gemini
+load_dotenv()
+
+# Create custom OpenAI client pointing to Gemini
+gemini_api_key = os.getenv("GOOGLE_API_KEY")
+external_provider = AsyncOpenAI(
+    api_key=gemini_api_key,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+# Create model using the custom client
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",
+)
+
+# Configure agent with model
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
+
+# Create agent
 agent = Agent(
     name="Todo Assistant",
     instructions="You are a helpful task management assistant.",
-    model=LitellmModel(
-        model="gemini/gemini-2.0-flash",
-        api_key=os.getenv("GOOGLE_API_KEY"),
-    ),
 )
 
-# Run the agent
-result = await Runner.run(agent, "Help me organize my tasks")
+# Run the agent with config
+result = await Runner.run(agent, "Help me organize my tasks", config=config)
+print(result.final_output)
+```
+
+## Alternative: Using OpenRouter
+
+OpenRouter provides access to multiple models through a single API, including free options.
+
+```python
+import os
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner
+from agents.run import RunConfig
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Create OpenRouter client
+openrouter_key = os.getenv("OPENROUTER_API_KEY")
+external_provider = AsyncOpenAI(
+    api_key=openrouter_key,
+    base_url="https://openrouter.ai/api/v1",
+)
+
+# Use a free model (powered by Gemini or other providers)
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="openai/gpt-oss-20b:free",
+)
+
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
+
+# Create and run agent
+agent = Agent(
+    name="Todo Assistant",
+    instructions="You are a helpful task management assistant.",
+)
+
+result = await Runner.run(agent, "Help me organize my tasks", config=config)
 print(result.final_output)
 ```
 
@@ -89,21 +153,21 @@ print(result.final_output)
 | Example | Description |
 |---------|-------------|
 | [examples/todo-agent.md](examples/todo-agent.md) | Complete todo agent with MCP tools |
-| [examples/gemini-agent.md](examples/gemini-agent.md) | Agent using Gemini via LiteLLM |
 
 ## Templates
 
 | Template | Purpose |
 |----------|---------|
-| [templates/agent_gemini.py](templates/agent_gemini.py) | Basic Gemini agent template |
+| [templates/agent_gemini.py](templates/agent_gemini.py) | Basic Gemini agent template with direct integration |
 | [templates/agent_mcp.py](templates/agent_mcp.py) | Agent with MCP server integration |
 
 ## Basic Agent with Function Tools
 
 ```python
 import asyncio
-from agents import Agent, Runner, function_tool
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner, function_tool
+from agents.run import RunConfig
+import os
 
 @function_tool
 def get_weather(city: str) -> str:
@@ -111,17 +175,30 @@ def get_weather(city: str) -> str:
     return f"The weather in {city} is sunny."
 
 async def main():
+    # Setup Gemini client
+    external_provider = AsyncOpenAI(
+        api_key=os.getenv("GOOGLE_API_KEY"),
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+    )
+
+    model = OpenAIChatCompletionsModel(
+        openai_client=external_provider,
+        model="gemini-2.0-flash-exp",
+    )
+
+    config = RunConfig(
+        model=model,
+        model_provider=external_provider,
+        tracing_disabled=True
+    )
+
     agent = Agent(
         name="Assistant",
         instructions="You are a helpful assistant.",
-        model=LitellmModel(
-            model="gemini/gemini-2.0-flash",
-            api_key="your-api-key",
-        ),
         tools=[get_weather],
     )
 
-    result = await Runner.run(agent, "What's the weather in Tokyo?")
+    result = await Runner.run(agent, "What's the weather in Tokyo?", config=config)
     print(result.final_output)
 
 asyncio.run(main())
@@ -134,11 +211,28 @@ Connect your agent to an MCP server to access tools, resources, and prompts.
 ```python
 import asyncio
 import os
-from agents import Agent, Runner
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner
 from agents.mcp import MCPServerStreamableHttp
-from agents.extensions.models.litellm_model import LitellmModel
+from agents.run import RunConfig
 
 async def main():
+    # Setup Gemini client
+    external_provider = AsyncOpenAI(
+        api_key=os.getenv("GOOGLE_API_KEY"),
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+    )
+
+    model = OpenAIChatCompletionsModel(
+        openai_client=external_provider,
+        model="gemini-2.0-flash-exp",
+    )
+
+    config = RunConfig(
+        model=model,
+        model_provider=external_provider,
+        tracing_disabled=True
+    )
+
     async with MCPServerStreamableHttp(
         name="Todo MCP Server",
         params={
@@ -156,16 +250,13 @@ Use the MCP tools to help users manage their tasks:
 - complete_task: Mark tasks as done
 - delete_task: Remove tasks
 - update_task: Modify tasks""",
-            model=LitellmModel(
-                model="gemini/gemini-2.0-flash",
-                api_key=os.getenv("GOOGLE_API_KEY"),
-            ),
             mcp_servers=[mcp_server],
         )
 
         result = await Runner.run(
             agent,
             "Show me my pending tasks",
+            config=config
         )
         print(result.final_output)
 
@@ -174,20 +265,37 @@ asyncio.run(main())
 
 ## Agent Handoffs
 
-Create specialized agents that hand off conversations.
+Create specialized agents that hand off conversations. Note: When using handoffs, all agents share the same RunConfig.
 
 ```python
-from agents import Agent, handoff
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import Agent, handoff, AsyncOpenAI, OpenAIChatCompletionsModel, Runner
+from agents.run import RunConfig
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
+import os
 
-# Specialized agents
+# Setup shared configuration
+external_provider = AsyncOpenAI(
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",
+)
+
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
+
+# Specialized agents (no model specified - uses config)
 task_agent = Agent(
     name="Task Agent",
     instructions=prompt_with_handoff_instructions(
         "You specialize in task management. Help users create, update, and complete tasks."
     ),
-    model=LitellmModel(model="gemini/gemini-2.0-flash", api_key="..."),
 )
 
 help_agent = Agent(
@@ -195,7 +303,6 @@ help_agent = Agent(
     instructions=prompt_with_handoff_instructions(
         "You provide help and instructions about using the todo app."
     ),
-    model=LitellmModel(model="gemini/gemini-2.0-flash", api_key="..."),
 )
 
 # Triage agent
@@ -206,9 +313,11 @@ triage_agent = Agent(
 - Task Agent: for creating, viewing, or managing tasks
 - Help Agent: for questions about how to use the app"""
     ),
-    model=LitellmModel(model="gemini/gemini-2.0-flash", api_key="..."),
     handoffs=[task_agent, help_agent],
 )
+
+# Run with config
+result = await Runner.run(triage_agent, "How do I add a task?", config=config)
 ```
 
 ## Streaming Responses
@@ -216,7 +325,7 @@ triage_agent = Agent(
 ```python
 from agents import Runner
 
-result = Runner.run_streamed(agent, "List my tasks")
+result = Runner.run_streamed(agent, "List my tasks", config=config)
 
 async for event in result.stream_events():
     if event.type == "run_item_stream_event":
@@ -228,47 +337,41 @@ print(result.final_output)
 ## Model Settings
 
 ```python
-from agents import Agent, ModelSettings
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import Agent, ModelSettings, Runner
 
 agent = Agent(
     name="Assistant",
-    model=LitellmModel(model="gemini/gemini-2.0-flash", api_key="..."),
     model_settings=ModelSettings(
         include_usage=True,  # Track token usage
         tool_choice="auto",  # or "required", "none"
     ),
 )
 
-result = await Runner.run(agent, "Hello!")
+result = await Runner.run(agent, "Hello!", config=config)
 print(f"Tokens used: {result.context_wrapper.usage.total_tokens}")
 ```
 
-## Tracing with Non-OpenAI Models
+## Tracing Control
 
-Use OpenAI tracing with Gemini (requires OpenAI API key):
+Disable tracing when not using OpenAI:
 
 ```python
-import os
-from agents import set_tracing_export_api_key, Agent
-from agents.extensions.models.litellm_model import LitellmModel
+from agents.run import RunConfig
 
-# Enable tracing (optional)
-set_tracing_export_api_key(os.environ["OPENAI_API_KEY"])
-
-# Or disable tracing
-from agents import set_tracing_disabled
-set_tracing_disabled(disabled=True)
+# Tracing disabled in config
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True  # Disable tracing
+)
 ```
 
-## LiteLLM Model Formats
+## Supported Model Providers
 
-| Provider | Model Format |
-|----------|--------------|
-| **Gemini** | `gemini/gemini-2.0-flash`, `gemini/gemini-1.5-pro` |
-| **Anthropic** | `anthropic/claude-3-5-sonnet-20240620` |
-| **OpenAI** | `gpt-4`, `gpt-4o-mini` |
-| **Ollama** | `ollama/llama2`, `ollama/mistral` |
+| Provider | Base URL | Model Examples |
+|----------|----------|----------------|
+| **Gemini** | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.0-flash-exp`, `gemini-1.5-pro` |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | `openai/gpt-oss-20b:free`, `google/gemini-2.0-flash-exp:free` |
 
 ## MCP Connection Types
 
@@ -295,27 +398,61 @@ except Exception as e:
 
 ## Best Practices
 
-1. **Use LiteLLM** for non-OpenAI models (Gemini, Claude, etc.)
-2. **Cache MCP tools** with `cache_tools_list=True` for performance
-3. **Use handoffs** for specialized functionality
-4. **Enable usage tracking** to monitor costs
-5. **Disable tracing** in production if not using OpenAI
-6. **Handle errors gracefully** with try/except
-7. **Use streaming** for better user experience
+1. **Use Direct Integration** - Use AsyncOpenAI with custom base_url instead of LiteLLM to avoid quota issues
+2. **Pass RunConfig** - Always pass RunConfig to Runner.run() for non-OpenAI providers
+3. **Cache MCP tools** - Use `cache_tools_list=True` for performance
+4. **Use handoffs** - Create specialized agents for different functionality
+5. **Enable usage tracking** - Set `include_usage=True` in ModelSettings to monitor costs
+6. **Disable tracing** - Set `tracing_disabled=True` in RunConfig when not using OpenAI
+7. **Handle errors gracefully** - Use try/except for agent execution
+8. **Use streaming** - Implement streaming for better user experience
+9. **Share configuration** - When using handoffs, all agents share the same RunConfig
 
 ## Troubleshooting
 
-### LiteLLM not found
-```bash
-pip install "openai-agents[litellm]"
+### Quota Exceeded Error on First Request
+**Problem**: Getting quota exceeded error even on first request when using LiteLLM.
+
+**Solution**: Switch to direct integration using AsyncOpenAI:
+```python
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel
+from agents.run import RunConfig
+
+external_provider = AsyncOpenAI(
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",
+)
+
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
+
+result = await Runner.run(agent, "Hello", config=config)
 ```
 
 ### MCP connection fails
 - Check MCP server is running
 - Verify URL is correct
 - Check timeout settings
+- Ensure cache_tools_list=True for performance
 
 ### Gemini API errors
-- Verify GOOGLE_API_KEY is set
-- Check model name format: `gemini/gemini-2.0-flash`
+- Verify GOOGLE_API_KEY is set correctly
+- Check model name: `gemini-2.0-flash-exp` or `gemini-1.5-pro`
+- Verify base_url is correct: `https://generativelanguage.googleapis.com/v1beta/openai`
 - Ensure API quota is not exceeded
+
+### Agent not using provided model
+**Problem**: Agent ignores model configuration.
+
+**Solution**: Always pass RunConfig to Runner.run():
+```python
+result = await Runner.run(agent, message, config=config)
+```

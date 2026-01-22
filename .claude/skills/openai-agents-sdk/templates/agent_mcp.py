@@ -2,10 +2,10 @@
 Agent with MCP Server Integration Template
 
 An agent that connects to an MCP server to access tools.
-Uses Gemini via LiteLLM for the language model.
+Uses Gemini via direct AsyncOpenAI integration.
 
 Requirements:
-    pip install "openai-agents[litellm]"
+    pip install openai-agents python-dotenv
 
 Environment:
     GOOGLE_API_KEY=your-gemini-api-key
@@ -18,13 +18,13 @@ Usage:
 
 import asyncio
 import os
-from agents import Agent, Runner, set_tracing_disabled
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner
 from agents.mcp import MCPServerStreamableHttp
-from agents.extensions.models.litellm_model import LitellmModel
+from agents.run import RunConfig
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
+from dotenv import load_dotenv
 
-# Disable OpenAI tracing (not needed for Gemini)
-set_tracing_disabled(disabled=True)
+load_dotenv()
 
 
 # ============================================================================
@@ -36,6 +36,24 @@ MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/api/mcp")
 
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+# Setup Gemini client and model
+external_provider = AsyncOpenAI(
+    api_key=GOOGLE_API_KEY,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",
+)
+
+# Create run configuration
+run_config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
 
 
 # ============================================================================
@@ -66,10 +84,6 @@ def create_agent(mcp_server) -> Agent:
     return Agent(
         name="MCP Assistant",
         instructions=AGENT_INSTRUCTIONS,
-        model=LitellmModel(
-            model="gemini/gemini-2.0-flash",
-            api_key=GOOGLE_API_KEY,
-        ),
         mcp_servers=[mcp_server],
     )
 
@@ -80,7 +94,7 @@ def create_agent(mcp_server) -> Agent:
 
 async def single_query(agent: Agent, query: str) -> str:
     """Run a single query and return the response."""
-    result = await Runner.run(agent, query)
+    result = await Runner.run(agent, query, config=run_config)
     return result.final_output
 
 
@@ -97,7 +111,7 @@ async def chat_loop(agent: Agent):
             if user_input.lower() in ["quit", "exit", "q"]:
                 break
 
-            result = await Runner.run(agent, user_input)
+            result = await Runner.run(agent, user_input, config=run_config)
             print(f"Assistant: {result.final_output}\n")
 
         except KeyboardInterrupt:
@@ -168,7 +182,7 @@ async def demo():
 
         for query in queries:
             print(f"\nUser: {query}")
-            result = await Runner.run(agent, query)
+            result = await Runner.run(agent, query, config=run_config)
             print(f"Assistant: {result.final_output}")
 
 

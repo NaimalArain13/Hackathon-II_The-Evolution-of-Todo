@@ -49,7 +49,9 @@ router = APIRouter(tags=["chat"])
 # ============================================================================
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+print(f"GOOGLE_API_KEY: {GOOGLE_API_KEY}")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/api/mcp")
+print(f"MCP_SERVER_URL: {MCP_SERVER_URL}")
 
 
 # ============================================================================

@@ -1,0 +1,202 @@
+# Agent Configuration Specification
+# Phase 3 Backend - Todo Assistant Agent
+
+agent:
+  name: "Todo Assistant"
+  version: "3.0.0"
+  description: "AI-powered task management assistant using natural language"
+
+model:
+  provider: "litellm"
+  model_name: "gemini/gemini-2.0-flash"
+  api_key_env: "GOOGLE_API_KEY"
+  settings:
+    temperature: 0.7  # Balanced creativity and consistency
+    max_tokens: 1000  # Sufficient for conversational responses
+    top_p: 0.9
+    presence_penalty: 0.0
+    frequency_penalty: 0.0
+
+mcp_connection:
+  type: "streamable-http"
+  url: "http://localhost:8000/api/mcp"
+  timeout_seconds: 30
+  cache_tools: true  # Cache tool list for performance
+  retry_strategy:
+    max_retries: 3
+    backoff_multiplier: 2
+    initial_delay_ms: 1000
+
+conversation:
+  max_history_messages: 50  # Load recent 50 messages for context
+  context_window_tokens: 1000000  # Gemini 2.0 Flash limit
+  truncation_strategy: "recent"  # Keep most recent messages
+
+system_prompt:
+  template: |
+    You are a friendly and efficient task management assistant.
+
+    Your purpose is to help users manage their todo list through natural conversation.
+    You have access to the following tools via MCP:
+
+    **Task Management Tools:**
+
+    1. add_task(user_id, title, description)
+       - Creates a new task
+       - Use when: user wants to add, create, or remember something
+       - Examples: "I need to...", "Remind me to...", "Add task..."
+
+    2. list_tasks(user_id, status)
+       - Retrieves tasks (status: "all", "pending", or "completed")
+       - Use when: user wants to see, show, view, or list tasks
+       - Examples: "What do I need to do?", "Show my tasks", "What's pending?"
+
+    3. complete_task(user_id, task_id)
+       - Marks a task as complete
+       - Use when: user indicates task is done, complete, or finished
+       - Examples: "I finished...", "Mark task X done", "Completed..."
+
+    4. delete_task(user_id, task_id)
+       - Removes a task permanently
+       - Use when: user wants to delete, remove, or cancel a task
+       - Examples: "Delete task...", "Remove the...", "Cancel..."
+
+    5. update_task(user_id, task_id, title, description)
+       - Modifies an existing task
+       - Use when: user wants to change, update, or edit a task
+       - Examples: "Change task to...", "Update the title...", "Edit..."
+
+    **Important Instructions:**
+
+    - ALWAYS pass user_id="{user_id}" to every tool call (this is the authenticated user)
+    - For ambiguous requests, list tasks first to help user identify task IDs
+    - Confirm actions with friendly, conversational responses
+    - If a task isn't found, suggest showing the task list
+    - Keep responses concise and helpful
+    - Use natural, conversational language (avoid technical jargon)
+
+    **Response Style:**
+    - Friendly and encouraging
+    - Confirm actions clearly ("I've added 'Buy groceries' to your list")
+    - Provide helpful context (e.g., "You have 3 pending tasks")
+    - Ask clarifying questions when needed
+
+    Current user: {user_id}
+
+  variables:
+    - name: "user_id"
+      description: "Authenticated user ID injected at runtime"
+      required: true
+
+response_formatting:
+  tone: "friendly"
+  verbosity: "concise"
+  include_summaries: true  # Include task counts, confirmations
+  avoid_technical_terms: true
+
+error_handling:
+  on_tool_failure:
+    strategy: "graceful"
+    fallback_message: "I encountered an issue accessing your tasks. Please try again."
+
+  on_mcp_disconnect:
+    strategy: "inform_user"
+    message: "I'm having trouble connecting to the task management system. Please try again in a moment."
+
+  on_ambiguous_input:
+    strategy: "clarify"
+    prompt_template: "I'm not sure what you'd like me to do. Could you rephrase that?"
+
+intent_recognition:
+  confidence_threshold: 0.7  # Minimum confidence for tool selection
+  fallback_behavior: "ask_clarification"
+
+  intent_patterns:
+    add_task:
+      keywords: ["add", "create", "new", "remind", "remember", "need to"]
+      examples:
+        - "I need to buy groceries"
+        - "Remind me to call mom"
+        - "Add a task for paying bills"
+
+    list_tasks:
+      keywords: ["show", "list", "what", "view", "see", "my tasks"]
+      examples:
+        - "Show me my tasks"
+        - "What do I need to do?"
+        - "What's on my plate?"
+
+    complete_task:
+      keywords: ["done", "complete", "finished", "did", "mark"]
+      examples:
+        - "I finished the groceries"
+        - "Mark task 3 as done"
+        - "Completed the report"
+
+    delete_task:
+      keywords: ["delete", "remove", "cancel", "get rid of"]
+      examples:
+        - "Delete task 5"
+        - "Remove the shopping task"
+        - "Cancel my meeting reminder"
+
+    update_task:
+      keywords: ["change", "update", "edit", "modify", "rename"]
+      examples:
+        - "Change task 1 to 'Buy milk'"
+        - "Update the description"
+        - "Rename the task"
+
+logging:
+  enabled: true
+  log_level: "INFO"
+  log_tool_calls: true
+  log_responses: false  # Don't log full responses (privacy)
+  log_errors: true
+
+monitoring:
+  track_token_usage: true
+  track_response_time: true
+  track_intent_recognition_accuracy: true
+
+testing:
+  test_prompts:
+    - "Show me my pending tasks"
+    - "I need to buy groceries tomorrow"
+    - "Mark task 3 as done"
+    - "What have I completed recently?"
+    - "Delete the old meeting task"
+    - "Change task 1 to 'Call mom tonight'"
+
+  expected_tool_calls:
+    - prompt: "Show me my pending tasks"
+      expected_tool: "list_tasks"
+      expected_params:
+        status: "pending"
+
+    - prompt: "I need to buy groceries"
+      expected_tool: "add_task"
+      expected_params:
+        title: "Buy groceries"
+
+    - prompt: "Mark task 3 as done"
+      expected_tool: "complete_task"
+      expected_params:
+        task_id: 3
+
+security:
+  validate_user_id: true  # Ensure user_id in tool calls matches authenticated user
+  sanitize_input: true    # Remove potentially harmful characters
+  max_message_length: 5000  # Prevent abuse
+
+deployment:
+  environment: "production"
+  tracing_enabled: false  # Disable OpenAI tracing (we're using Gemini)
+  performance_mode: "balanced"
+
+notes:
+  - "System prompt is parameterized with {user_id} at runtime"
+  - "Agent is created per request for stateless operation"
+  - "MCP connection is shared across requests via lifespan manager"
+  - "Intent recognition accuracy target: >90%"
+  - "Average response time target: <2 seconds"

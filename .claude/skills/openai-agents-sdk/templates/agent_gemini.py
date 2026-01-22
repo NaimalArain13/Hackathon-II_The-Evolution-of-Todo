@@ -1,10 +1,10 @@
 """
 Basic Gemini Agent Template
 
-A simple agent using Gemini via LiteLLM with function tools.
+A simple agent using Gemini via direct AsyncOpenAI integration with function tools.
 
 Requirements:
-    pip install "openai-agents[litellm]"
+    pip install openai-agents python-dotenv
 
 Environment:
     GOOGLE_API_KEY=your-gemini-api-key
@@ -15,11 +15,11 @@ Usage:
 
 import asyncio
 import os
-from agents import Agent, Runner, function_tool, set_tracing_disabled
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner, function_tool
+from agents.run import RunConfig
+from dotenv import load_dotenv
 
-# Disable OpenAI tracing (not needed for Gemini)
-set_tracing_disabled(disabled=True)
+load_dotenv()
 
 
 # ============================================================================
@@ -30,6 +30,24 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY environment variable not set")
+
+# Setup Gemini client and model
+external_provider = AsyncOpenAI(
+    api_key=GOOGLE_API_KEY,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",
+)
+
+# Create run configuration
+run_config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
 
 
 # ============================================================================
@@ -97,10 +115,6 @@ Available tools:
 - get_current_time: Get the current time
 
 Be helpful, friendly, and concise in your responses.""",
-        model=LitellmModel(
-            model="gemini/gemini-2.0-flash",
-            api_key=GOOGLE_API_KEY,
-        ),
         tools=[greet, calculate, get_current_time],
     )
 
@@ -126,7 +140,7 @@ async def main():
 
     for query in queries:
         print(f"\nUser: {query}")
-        result = await Runner.run(agent, query)
+        result = await Runner.run(agent, query, config=run_config)
         print(f"Assistant: {result.final_output}")
 
     print("\n" + "=" * 50)
@@ -148,7 +162,7 @@ async def interactive():
             if user_input.lower() in ["quit", "exit", "q"]:
                 break
 
-            result = await Runner.run(agent, user_input)
+            result = await Runner.run(agent, user_input, config=run_config)
             print(f"Assistant: {result.final_output}\n")
 
         except KeyboardInterrupt:

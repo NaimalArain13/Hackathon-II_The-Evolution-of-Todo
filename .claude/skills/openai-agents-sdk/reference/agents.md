@@ -5,17 +5,35 @@ Create AI agents with custom instructions, tools, and model configurations.
 ## Basic Agent
 
 ```python
-from agents import Agent
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel, Agent, Runner
+from agents.run import RunConfig
+import os
 
+# Setup provider and model
+external_provider = AsyncOpenAI(
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",
+)
+
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
+)
+
+# Create agent (no model specified - uses config)
 agent = Agent(
     name="My Agent",
     instructions="You are a helpful assistant.",
-    model=LitellmModel(
-        model="gemini/gemini-2.0-flash",
-        api_key="your-api-key",
-    ),
 )
+
+# Run with config
+result = await Runner.run(agent, "Hello!", config=config)
 ```
 
 ## Agent Parameters
@@ -35,7 +53,6 @@ agent = Agent(
 
 ```python
 from agents import Agent, ModelSettings, function_tool
-from agents.extensions.models.litellm_model import LitellmModel
 
 @function_tool
 def my_tool(param: str) -> str:
@@ -50,10 +67,6 @@ Available capabilities:
 - Use tools to perform actions
 - Hand off to specialists when needed
 - Access MCP server resources""",
-    model=LitellmModel(
-        model="gemini/gemini-2.0-flash",
-        api_key="your-api-key",
-    ),
     tools=[my_tool],
     mcp_servers=[],  # Add MCP servers here
     handoffs=[],     # Add handoff agents here
@@ -63,6 +76,8 @@ Available capabilities:
     ),
     handoff_description="A general-purpose assistant",
 )
+
+# Note: Model is specified in RunConfig, not in Agent
 ```
 
 ## Running Agents
@@ -72,7 +87,8 @@ Available capabilities:
 ```python
 from agents import Runner
 
-result = await Runner.run(agent, "Hello, how are you?")
+# Always pass config for non-OpenAI providers
+result = await Runner.run(agent, "Hello, how are you?", config=config)
 print(result.final_output)
 ```
 
@@ -82,14 +98,15 @@ print(result.final_output)
 result = await Runner.run(
     agent,
     input="Process this request",
-    context={"user_id": "user123"},
+    config=config,
+    context_variables={"user_id": "user123"},
 )
 ```
 
 ### Streamed Run
 
 ```python
-result = Runner.run_streamed(agent, "Generate a story")
+result = Runner.run_streamed(agent, "Generate a story", config=config)
 
 async for event in result.stream_events():
     if event.type == "run_item_stream_event":
@@ -100,21 +117,27 @@ print("\n" + result.final_output)
 
 ## Model Configuration
 
-### LiteLLM for Gemini
+### Direct Gemini Integration
 
 ```python
-from agents.extensions.models.litellm_model import LitellmModel
+from agents import AsyncOpenAI, OpenAIChatCompletionsModel
+from agents.run import RunConfig
 
 # Gemini Flash (fast, efficient)
-model = LitellmModel(
-    model="gemini/gemini-2.0-flash",
+external_provider = AsyncOpenAI(
     api_key="your-google-api-key",
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
 )
 
-# Gemini Pro (more capable)
-model = LitellmModel(
-    model="gemini/gemini-1.5-pro",
-    api_key="your-google-api-key",
+model = OpenAIChatCompletionsModel(
+    openai_client=external_provider,
+    model="gemini-2.0-flash-exp",  # or "gemini-1.5-pro"
+)
+
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True
 )
 ```
 
@@ -132,8 +155,7 @@ settings = ModelSettings(
 
 agent = Agent(
     name="Agent",
-    model=model,
-    model_settings=settings,
+    model_settings=settings,  # Model specified in RunConfig
 )
 ```
 
@@ -145,12 +167,13 @@ agent = Agent(
 from agents import Runner
 
 # First turn
-result = await Runner.run(agent, "My name is Alice")
+result = await Runner.run(agent, "My name is Alice", config=config)
 
 # Continue conversation with history
 result = await Runner.run(
     agent,
     "What's my name?",
+    config=config,
     context=result.context,  # Pass previous context
 )
 ```
@@ -158,7 +181,7 @@ result = await Runner.run(
 ### Access Agent State
 
 ```python
-result = await Runner.run(agent, "Hello")
+result = await Runner.run(agent, "Hello", config=config)
 
 # Check which agent responded
 print(f"Agent: {result.current_agent.name}")
@@ -194,7 +217,6 @@ Help users create, organize, and complete tasks efficiently.
 - Use bullet points for lists
 - Keep responses focused and actionable
 - Ask for clarification if needed""",
-    model=model,
 )
 ```
 
@@ -204,20 +226,22 @@ Help users create, organize, and complete tasks efficiently.
 from agents import Runner
 
 try:
-    result = await Runner.run(agent, "Hello")
+    result = await Runner.run(agent, "Hello", config=config)
     print(result.final_output)
 except Exception as e:
     print(f"Error: {e}")
     # Handle gracefully
 ```
 
-## Disable Tracing (for non-OpenAI models)
+## Disable Tracing
 
 ```python
-from agents import set_tracing_disabled
+from agents.run import RunConfig
 
-# Disable tracing when not using OpenAI
-set_tracing_disabled(disabled=True)
-
-# Now create and run agents without tracing overhead
+# Disable tracing in RunConfig
+config = RunConfig(
+    model=model,
+    model_provider=external_provider,
+    tracing_disabled=True  # Disable tracing
+)
 ```
