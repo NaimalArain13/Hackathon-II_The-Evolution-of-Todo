@@ -11,7 +11,7 @@
  * - Focused view for task management
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TaskList } from '@/components/dashboard/TaskList';
@@ -27,8 +27,33 @@ import type { Task } from '@/types/task';
 
 export default function TasksPage() {
   const { filters, setFilters, clearFilters, hasActiveFilters } = useFilters();
-  const { data: tasks = [], isLoading, error } = useTasks({ filters });
+  const { data: tasks = [], isLoading, error, refetch } = useTasks({ filters });
   const { mutate: toggleComplete, variables: togglingTaskId } = useToggleComplete();
+
+  // Create a ref to hold the latest refetch function
+  const refetchRef = useRef(refetch);
+
+  // Update the ref with the latest refetch function on each render
+  useEffect(() => {
+    refetchRef.current = refetch;
+  });
+
+  // Listen for refreshTasks event to reload the task list after chat operations
+  useEffect(() => {
+    const handleRefreshTasks = () => {
+      console.log('Received refreshTasks event in tasks page, calling refetch');
+      refetchRef.current();
+    };
+
+    window.addEventListener('refreshTasks', handleRefreshTasks);
+    console.log('Added refreshTasks event listener in tasks page');
+
+    // Clean up event listener on unmount
+    return () => {
+      window.removeEventListener('refreshTasks', handleRefreshTasks);
+      console.log('Removed refreshTasks event listener from tasks page');
+    };
+  }, []); // Empty dependency array to register only once
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);
