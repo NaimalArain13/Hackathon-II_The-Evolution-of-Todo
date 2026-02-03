@@ -4,6 +4,8 @@ import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ChatWidgetProvider } from "@/contexts/ChatWidgetContext";
+import { ChatWidget } from "@/components/ChatKit/ChatWidget";
 import "./globals.css";
 
 const inter = Inter({
@@ -41,8 +43,11 @@ export default function RootLayout({
         </a>
         <QueryProvider>
           <AuthProvider>
-            {children}
-            <Toaster />
+            <ChatWidgetProvider>
+              {children}
+              <Toaster />
+              <ChatWidget />
+            </ChatWidgetProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

@@ -13,7 +13,7 @@
  * - Delete confirm dialog (User Story 6)
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
@@ -32,8 +32,33 @@ import type { Task } from '@/types/task';
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { filters, setFilters, clearFilters, hasActiveFilters } = useFilters();
-  const { data: tasks = [], isLoading, error } = useTasks({ filters });
+  const { data: tasks = [], isLoading, error, refetch } = useTasks({ filters });
   const { mutate: toggleComplete, variables: togglingTaskId } = useToggleComplete();
+
+  // Create a ref to hold the latest refetch function
+  const refetchRef = useRef(refetch);
+
+  // Update the ref with the latest refetch function on each render
+  useEffect(() => {
+    refetchRef.current = refetch;
+  });
+
+  // Listen for refreshTasks event to reload the task list after chat operations
+  useEffect(() => {
+    const handleRefreshTasks = () => {
+      console.log('Received refreshTasks event, calling refetch');
+      refetchRef.current();
+    };
+
+    window.addEventListener('refreshTasks', handleRefreshTasks);
+    console.log('Added refreshTasks event listener');
+
+    // Clean up event listener on unmount
+    return () => {
+      window.removeEventListener('refreshTasks', handleRefreshTasks);
+      console.log('Removed refreshTasks event listener');
+    };
+  }, []); // Empty dependency array to register only once
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false);

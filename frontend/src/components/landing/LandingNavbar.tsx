@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { defaultNavItems } from "./data";
+import { useAuthStore } from "@/store/auth-store";
 import type { LandingNavbarProps } from "./types";
 
 export function LandingNavbar({
@@ -16,6 +17,8 @@ export function LandingNavbar({
 }: LandingNavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthenticated, user, token } = useAuthStore();
+  const isLoggedIn = isAuthenticated && user && token;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -83,14 +86,22 @@ export function LandingNavbar({
           ))}
         </div>
 
-        {/* Desktop Auth Buttons */}
+        {/* Desktop Auth Buttons - Show Dashboard if logged in, else Login/Sign Up */}
         <div className="hidden md:flex items-center gap-4">
-          <Button variant="ghost" asChild>
-            <Link href={loginHref}>Login</Link>
-          </Button>
-          <Button asChild>
-            <Link href={signupHref}>Sign Up</Link>
-          </Button>
+          {isLoggedIn ? (
+            <Button asChild>
+              <Link href="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href={loginHref}>Login</Link>
+              </Button>
+              <Button asChild>
+                <Link href={signupHref}>Sign Up</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -130,16 +141,26 @@ export function LandingNavbar({
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t">
-                <Button variant="outline" asChild className="w-full">
-                  <Link href={loginHref} onClick={() => setIsMobileMenuOpen(false)}>
-                    Login
-                  </Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link href={signupHref} onClick={() => setIsMobileMenuOpen(false)}>
-                    Sign Up
-                  </Link>
-                </Button>
+                {isLoggedIn ? (
+                  <Button asChild className="w-full">
+                    <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                      Dashboard
+                    </Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="outline" asChild className="w-full">
+                      <Link href={loginHref} onClick={() => setIsMobileMenuOpen(false)}>
+                        Login
+                      </Link>
+                    </Button>
+                    <Button asChild className="w-full">
+                      <Link href={signupHref} onClick={() => setIsMobileMenuOpen(false)}>
+                        Sign Up
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
